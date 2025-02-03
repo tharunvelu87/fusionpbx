@@ -26,7 +26,7 @@
 	unset($assigned_extension);
 
 //if also viewing system status, show more recent calls (more room avaialble)
-	$missed_limit = !empty($selected_blocks) && (is_array($selected_blocks) && in_array('counts', $selected_blocks)) ? 10 : 5;
+	$missed_limit = !empty($selected_blocks) && (is_array($selected_blocks) && in_array('counts', $selected_blocks)) ? 10 : 5000;
 
 //set the sql time format
 	$sql_time_format = 'DD Mon HH12:MI am';

@@ -858,6 +858,10 @@
 						if (in_array($row['hangup_cause'], $failed_array)) {
 							$status = 'failed';
 						}
+						elseif (empty($row['bridge_uuid'])) {
+						// If there is no bridge_uuid, mark it as 'missed'
+							$status = 'missed';
+						}
 					}
 
 				//clear previous variables
