@@ -560,6 +560,10 @@
 							//voicemail
 							$missed_call = 'true';
 						}
+						if (isset($xml->variables->missed_call) && $xml->variables->missed_call == 'true') {
+							//marked as missed
+							$missed_call = 'true';
+						}
 						if (!isset($xml->variables->bridge_uuid) || empty($xml->variables->bridge_uuid)) {
 								$missed_call = 'true';
 						}
