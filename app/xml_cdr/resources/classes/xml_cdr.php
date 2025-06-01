@@ -231,6 +231,8 @@
 			$this->fields[] = "hangup_cause";
 			$this->fields[] = "hangup_cause_q850";
 			$this->fields[] = "sip_hangup_disposition";
+			$this->fields[] = "ring_group_uuid";
+			$this->fields[] = "ivr_menu_uuid";
 
 			if (!empty($this->settings->get('cdr', 'field'))) {
 				foreach ($this->settings->get('cdr', 'field') as $field) {
@@ -663,7 +665,6 @@
 						$caller_id_number = preg_replace('#[^0-9\-\#\*]#', '', $caller_id_number);
 
 					//misc
-						$this->array[$key][0]['ring_group_uuid'] = urldecode($xml->variables->ring_group_uuid);
 						$this->array[$key][0]['xml_cdr_uuid'] = $uuid;
 						$this->array[$key][0]['destination_number'] = $destination_number;
 						$this->array[$key][0]['sip_call_id'] = urldecode($xml->variables->sip_call_id);
@@ -680,6 +681,8 @@
 						$this->array[$key][0]['sip_hangup_disposition'] = urldecode($xml->variables->sip_hangup_disposition);
 						$this->array[$key][0]['pin_number'] = urldecode($xml->variables->pin_number);
 						$this->array[$key][0]['status'] = $status;
+						$this->array[$key][0]['ring_group_uuid'] = urldecode($xml->variables->ring_group_uuid);
+						$this->array[$key][0]['ivr_menu_uuid'] = urldecode($xml->variables->ivr_menu_uuid);
 
 					//time
 						//catch invalid call detail records
@@ -703,7 +706,7 @@
 						$this->array[$key][0]['end_epoch'] = $end_epoch;
 						$this->array[$key][0]['end_stamp'] = is_numeric((int)$end_epoch) ? date('c', $end_epoch) : null;
 						$this->array[$key][0]['duration'] = urldecode($xml->variables->billsec);
-						$this->array[$key][0]['mduration'] = urldecode($xml->variables->mduration);
+						$this->array[$key][0]['mduration'] = urldecode($xml->variables->billmsec);
 						$this->array[$key][0]['billsec'] = urldecode($xml->variables->billsec);
 						$this->array[$key][0]['billmsec'] = urldecode($xml->variables->billmsec);
 						$this->array[$key][0]['hold_accum_seconds'] = urldecode($xml->variables->hold_accum_seconds);
@@ -1706,7 +1709,7 @@
 
 				//if http enabled is set to false then deny access
 					if (!defined('STDIN')) {
-						if ($this->settings->get('cdr', 'http_enabled', false)) {
+						if (!$this->settings->get('cdr', 'http_enabled', false)) {
 							openlog('FusionPBX', LOG_NDELAY, LOG_AUTH);
 							syslog(LOG_WARNING, '['.$_SERVER['REMOTE_ADDR'].'] XML CDR import default setting http_enabled is not enabled. Line: '.__line__);
 							closelog();
