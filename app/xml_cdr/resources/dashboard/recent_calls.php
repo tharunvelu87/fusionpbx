@@ -215,7 +215,8 @@
 				echo "<tr ".$tr_link.">\n";
 				//determine call result and appropriate icon
 					echo "<td valign='middle' class='".$row_style[$c]."' style='cursor: help; padding: 0 0 0 6px;'>\n";
-					if ($theme_cdr_images_exist) {
+					//if ($theme_cdr_images_exist) {
+						if (true) {
 						$call_result = $row['status'];
 						if (isset($row['direction'])) {
 							echo "<img src='".PROJECT_PATH."/themes/".$_SESSION['domain']['template']['name']."/images/icon_cdr_".$row['direction']."_".$call_result.".png' width='16' style='border: none;' title='".$text['label-'.$row['direction']].": ".$text['label-'.$call_result]."'>\n";

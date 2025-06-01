@@ -564,10 +564,7 @@
 							//marked as missed
 							$missed_call = 'true';
 						}
-						if (
-						(isset($xml->callflow->direction) && $xml->callflow->direction == 'inbound') &&
-						(!isset($xml->variables->bridge_uuid) || empty($xml->variables->bridge_uuid))
-							) {
+						if (!isset($xml->variables->bridge_uuid) || empty($xml->variables->bridge_uuid)) {
 								$missed_call = 'true';
 						}
 

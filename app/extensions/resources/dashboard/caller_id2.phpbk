@@ -1,0 +1,288 @@
+<?php
+/*
+  FusionPBX Dashboard Widget: Dynamic Caller ID Selector
+  Version: MPL 1.1
+
+  - Upload a list of numbers (auto‑formatted to +1234567890)
+  - Optional “Use Caller ID Name” checkbox + text input
+  - Collapsed HUD shows your selected name + number
+  - Click HUD-content toggles details
+  - Bottom “…” bar matches other widgets
+  - AJAX updates DB + session without reload
+*/
+
+// include FusionPBX core
+require_once dirname(__DIR__, 4) . '/resources/require.php';
+require_once 'resources/check_auth.php';
+
+// permission check
+if (! permission_exists('extension_caller_id')) {
+    echo 'access denied';
+    exit;
+}
+
+// ensure session
+if (session_status() !== PHP_SESSION_ACTIVE) {
+    session_start();
+}
+
+// helper: strip non‑digits, prefix +
+function format_number($num) {
+    $digits = preg_replace('/\D+/', '', $num);
+    return $digits !== '' ? '+' . $digits : '';
+}
+
+// load current values
+$current_cid  = '';
+$current_name = '';
+if (! empty($_SESSION['user']['extension'][0]['outbound_caller_id_number'])) {
+    $current_cid = format_number(
+        $_SESSION['user']['extension'][0]['outbound_caller_id_number']
+    );
+}
+if (! empty($_SESSION['use_caller_id_name'])
+    && ! empty($_SESSION['caller_id_name'])
+) {
+    $current_name = $_SESSION['caller_id_name'];
+}
+
+// AJAX endpoints
+if (isset($_GET['ajax'])) {
+    header('Content-Type: application/json');
+    $action   = $_GET['ajax'];
+    $response = [];
+
+    if ($action === 'upload_list') {
+        $raw       = trim($_POST['caller_ids'] ?? '');
+        $use_name  = ! empty($_POST['use_caller_id_name']);
+        $name_text = trim($_POST['caller_id_name'] ?? '');
+        $ids       = [];
+
+        if ($raw !== '') {
+            foreach (preg_split('/[\r\n,]+/', $raw) as $p) {
+                $f = format_number(trim($p));
+                if ($f !== '') {
+                    $ids[] = $f;
+                }
+            }
+        }
+
+        $_SESSION['caller_ids']         = $ids;
+        $_SESSION['use_caller_id_name'] = $use_name;
+        $_SESSION['caller_id_name']     = $name_text;
+
+        $response = [
+            'status'     => 'ok',
+            'caller_ids' => $ids,
+            'use_name'   => $use_name,
+            'name'       => $name_text
+        ];
+    }
+    elseif ($action === 'update_callerid') {
+        $raw = trim($_POST['caller_id'] ?? '');
+        if ($raw === '') {
+            $response = ['status'=>'error','message'=>'Invalid caller ID'];
+        } else {
+            $cid       = format_number($raw);
+            $use_name  = ! empty($_POST['use_caller_id_name']);
+            $name_text = $_SESSION['caller_id_name'] ?? '';
+            $cid_name  = ($use_name && $name_text !== '') ? $name_text : $cid;
+
+            $ext = $_SESSION['user']['extension'][0] ?? null;
+            if (! empty($ext['extension_uuid'])) {
+                $db = new database;
+                try {
+                    $db->execute(
+                      "UPDATE v_extensions
+                         SET outbound_caller_id_number = :num,
+                             outbound_caller_id_name   = :name
+                       WHERE extension_uuid         = :uuid",
+                      [
+                        ':num'  => $cid,
+                        ':name' => $cid_name,
+                        ':uuid' => $ext['extension_uuid']
+                      ]
+                    );
+                    // clear cache
+                    if (! empty($ext['destination']) && ! empty($ext['user_context'])) {
+                        (new cache())->delete(
+                            "directory:{$ext['destination']}@{$ext['user_context']}"
+                        );
+                    }
+                    // mirror in session
+                    foreach ($_SESSION['user']['extension'] as &$e) {
+                        if ($e['extension_uuid'] === $ext['extension_uuid']) {
+                            $e['outbound_caller_id_number'] = $cid;
+                            $e['outbound_caller_id_name']   = $cid_name;
+                        }
+                    }
+                    $response = ['status'=>'ok','selected'=>$cid,'name'=>$cid_name];
+                }
+                catch (Exception $ex) {
+                    $response = ['status'=>'error','message'=>'Database update failed'];
+                }
+            } else {
+                $response = ['status'=>'error','message'=>'Extension not found'];
+            }
+        }
+    }
+
+    echo json_encode($response);
+    exit;
+}
+?>
+
+<!-- Widget HTML -->
+<div class="hud_box" id="caller_id_widget">
+
+  <!-- Collapsed HUD -->
+  <div class="hud_content"
+       onclick="$('#caller_id_details').slideToggle('fast'); toggle_grid_row_end('<?php echo $dashboard_name ?? ''; ?>');">
+    <span class="hud_title">
+      <?php echo escape($current_name ?: 'Name not set'); ?>
+    </span>
+    <span class="hud_stat">
+      <?php echo escape($current_cid ?: 'No Caller ID'); ?>
+    </span>
+    <span class="hud_expander">
+      <span class="fas fa-ellipsis-h"></span>
+    </span>
+  </div>
+
+  <!-- Expanded Details -->
+  <div class="hud_details hud_box" id="caller_id_details" style="display:none; padding:10px;">
+    <form id="caller_form" onsubmit="return false;">
+      <label>
+        <input
+          type="checkbox"
+          id="use_caller_id_name"
+          <?php echo $current_name ? 'checked' : ''; ?>
+        > Use Caller ID Name
+      </label><br>
+      <input
+        type="text"
+        id="caller_id_name"
+        name="caller_id_name"
+        placeholder="Caller Name"
+        value="<?php echo escape($current_name); ?>"
+        style="width:100%; margin:5px 0;"
+      ><br>
+
+      <h4>Available Caller IDs:</h4>
+      <div id="caller_id_list">
+        <?php if (! empty($_SESSION['caller_ids'])): ?>
+          <?php foreach ($_SESSION['caller_ids'] as $cid): ?>
+            <div class="caller-id-item" data-caller_id="<?php echo htmlspecialchars($cid); ?>">
+              <?php echo htmlspecialchars($cid); ?>
+            </div>
+          <?php endforeach; ?>
+        <?php else: ?>
+          <p>No caller IDs uploaded.</p>
+        <?php endif; ?>
+      </div>
+
+      <textarea
+        id="caller_ids"
+        name="caller_ids"
+        style="width:100%; height:80px; font-family:monospace;"
+      ><?php echo implode(', ', $_SESSION['caller_ids'] ?? []); ?></textarea><br>
+
+      <?php
+        echo button::create([
+          'type'  => 'button',
+          'id'    => 'upload_btn',
+          'label' => 'Upload Caller IDs',
+          'icon'  => $settings->get('theme','button_icon_save')
+        ]);
+      ?>
+    </form>
+  </div>
+
+  <!-- Bottom expander bar (sibling to details) -->
+  <span class="hud_expander"
+        onclick="$('#caller_id_details').slideToggle('fast'); toggle_grid_row_end('<?php echo $dashboard_name ?? ''; ?>');">
+    <span class="fas fa-ellipsis-h"></span>
+  </span>
+
+</div>
+
+<style>
+  /* scope everything to this widget */
+  #caller_id_widget .hud_content {
+    display: flex !important;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    padding: 1rem;
+  }
+  #caller_id_widget .hud_title {
+    font-size: 0.9rem;
+    color: #666;
+    margin-bottom: 0.25rem;
+  }
+  #caller_id_widget .hud_stat {
+    font-size: 1.75rem;
+    line-height: 1.2;
+  }
+  #caller_id_widget .hud_expander {
+    text-align: center;
+    padding: 0.5rem 0;
+    color: #aaa;
+    cursor: pointer;
+  }
+  #caller_id_widget .caller-id-item {
+    padding: 5px;
+    margin: 2px 0;
+    border: 1px solid #ddd;
+    cursor: pointer;
+  }
+  #caller_id_widget .caller-id-item:hover {
+    background-color: #f9f9f9;
+  }
+  #caller_id_widget .caller-id-item.selected {
+    background-color: #e6f7ff;
+  }
+</style>
+
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script>
+  const widgetUrl = '<?php echo PROJECT_PATH; ?>/app/extensions/resources/dashboard/caller_id2.php';
+
+  jQuery(function($){
+    // Upload new list
+    $('#upload_btn').on('click', function(){
+      $.post(widgetUrl + '?ajax=upload_list', {
+        caller_ids: $('#caller_ids').val(),
+        use_caller_id_name: $('#use_caller_id_name').is(':checked') ? 1 : 0,
+        caller_id_name: $('#caller_id_name').val()
+      }, function(resp){
+        if (Array.isArray(resp.caller_ids)) {
+          let html = '';
+          resp.caller_ids.forEach(c => {
+            html += '<div class="caller-id-item" data-caller_id="'+c+'">'+c+'</div>';
+          });
+          $('#caller_id_list').html(html);
+        }
+      }, 'json');
+    });
+
+    // Select a caller ID
+    $('#caller_id_list').on('click', '.caller-id-item', function(){
+      let el  = $(this),
+          cid = el.data('caller_id');
+      $.post(widgetUrl + '?ajax=update_callerid', {
+        caller_id: cid,
+        use_caller_id_name: $('#use_caller_id_name').is(':checked') ? 1 : 0,
+        caller_id_name: $('#caller_id_name').val()
+      }, function(resp){
+        if (resp.selected) {
+          $('#caller_id_widget .caller-id-item').removeClass('selected');
+          el.addClass('selected');
+          $('#caller_id_widget .hud_title').text(resp.name || 'Name not set');
+          $('#caller_id_widget .hud_stat').text(resp.selected);
+        }
+      }, 'json');
+    });
+  });
+</script>
