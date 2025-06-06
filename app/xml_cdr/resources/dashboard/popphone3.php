@@ -2,21 +2,25 @@
 /*
     popphone.php
     FusionPBX Phone Dashboard Widget (Enhanced Draggable/Resizable)
-    Version: 1.5.2 (with autosizeInput fix)
+    Version: 1.5.2 (Superadmin‐compatible)
 
     • Includes FusionPBX core
-    • Checks permissions (voicemail_greeting_view OR xml_cdr_view)
-    • Loads the current user’s extension + password
+    • Checks permissions (superadmin OR voicemail_greeting_view OR xml_cdr_view)
+    • Loads the current user’s extension + password (if they have one in this domain)
     • Builds a “Launch Phone” icon that, when clicked, spawns a jQuery UI dialog containing the Browser-Phone iframe
-    • Always loads jQuery UI (draggable, resizable) from /resources/jquery
+    • Always loads jQuery UI (draggable/resizable) from /resources/jquery
 */
 
 // 1) Include FusionPBX core
 require_once dirname(__DIR__, 4) . '/resources/require.php';
 require_once dirname(__DIR__, 4) . '/resources/check_auth.php';
 
-// 2) Permission check - modified for superadmin domain switching
-if (!(if_group("superadmin") || permission_exists('voicemail_greeting_view') || permission_exists('xml_cdr_view'))) {
+// 2) Permission check (superadmin OR voicemail_greeting_view OR xml_cdr_view)
+if (
+    ! if_group("superadmin")
+    && ! permission_exists('voicemail_greeting_view')
+    && ! permission_exists('xml_cdr_view')
+) {
     echo "access denied";
     exit;
 }
@@ -25,7 +29,7 @@ if (!(if_group("superadmin") || permission_exists('voicemail_greeting_view') || 
 $language = new text;
 $text     = $language->get($_SESSION['domain']['language']['code'], 'core/user_settings');
 
-// 4) Fetch the user’s extension_uuid
+// 4) Fetch the user’s extension_uuid (for the current domain)
 $sql = "
     SELECT extension_uuid
       FROM v_extension_users
@@ -39,24 +43,37 @@ $params = [
 $database       = new database;
 $extension_uuid = $database->select($sql, $params, 'column');
 
-// 5) Fetch extension and password
-$sql = "
-    SELECT extension, password
-      FROM v_extensions
-     WHERE extension_uuid = :extension_uuid
-";
-$params = ['extension_uuid' => $extension_uuid];
-$row    = $database->select($sql, $params, 'row');
-$extension = $row['extension'] ?? null;
-$password  = $row['password']  ?? null;
+// 5) Fetch extension + password (if that extension_uuid exists)
+$extension = null;
+$password  = null;
+if (!empty($extension_uuid)) {
+    $sql = "
+        SELECT extension, password
+          FROM v_extensions
+         WHERE extension_uuid = :extension_uuid
+           AND domain_uuid    = :domain_uuid
+    ";
+    $params = [
+        'extension_uuid' => $extension_uuid,
+        'domain_uuid'    => $_SESSION['domain_uuid']
+    ];
+    $row = $database->select($sql, $params, 'row');
+    if (!empty($row)) {
+        $extension = $row['extension'];
+        $password  = $row['password'];
+    }
+}
 
-// 6) If missing, deny
-if (empty($extension) || empty($password)) {
+// 6) If there’s no extension/password for this user in this domain, deny unless superadmin
+if (
+    (empty($extension) || empty($password))
+    && ! if_group("superadmin")
+) {
     echo "access denied";
     exit;
 }
 
-// 7) Fetch contact_name (fallback to extension)
+// 7) Fetch contact_name (fallback to extension or “Unknown”)
 $sql = "
     SELECT contact_name
       FROM view_users
@@ -69,26 +86,48 @@ $params = [
 ];
 $contactName = $database->select($sql, $params, 'column');
 if (empty($contactName)) {
-    $contactName = $extension;
+    if (!empty($extension)) {
+        $contactName = $extension;
+    }
+    else {
+        // superadmin with no extension: use “Unknown”
+        $contactName = "Unknown";
+    }
 }
 
-// 8) Build Browser-Phone URL
-$protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on') ? 'https' : 'http';
-$phone_url  = $protocol . '://' . $_SESSION['domain_name'] . '/Browser-Phone/Phone/index.php';
-$phone_url .= '?server='    . urlencode($_SESSION['domain_name']);
-$phone_url .= '&extension=' . urlencode($extension);
-$phone_url .= '&password='  . urlencode($password);
-$phone_url .= '&fullname='  . urlencode($contactName);
+// 8) Build Browser-Phone URL (only if extension/password exist)
+$phone_url = "";
+if (!empty($extension) && !empty($password)) {
+    $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on')
+              ? 'https'
+              : 'http';
+    $phone_url  = $protocol . '://' . $_SESSION['domain_name'] . '/Browser-Phone/Phone/index.php';
+    $phone_url .= '?server='    . urlencode($_SESSION['domain_name']);
+    $phone_url .= '&extension=' . urlencode($extension);
+    $phone_url .= '&password='  . urlencode($password);
+    $phone_url .= '&fullname='  . urlencode($contactName);
+}
 ?>
 
-<!-- 9) Dashboard widget box (nothing happens until click) -->
+<!-- 9) Dashboard widget box (clicking only works if an extension was found) -->
 <div class="hud_box" id="hud_phone_widget">
-    <div class="hud_content" id="launch_phone_button" style="cursor: pointer;">
+    <div
+        class="hud_content"
+        id="launch_phone_button"
+        style="cursor: <?php echo (!empty($phone_url)) ? 'pointer' : 'default'; ?>;"
+        <?php if (!empty($phone_url)): ?>
+            onclick="openPhoneDialog();"
+        <?php endif; ?>
+    >
         <span class="hud_title">
             <?php echo $text['label-launch_phone'] ?? 'Launch Phone'; ?>
         </span>
         <span class="hud_stat">
-            <i class="fas fa-phone" style="font-size: 32px; color: #8e44ad;"></i>
+            <i
+                class="fas fa-phone"
+                style="font-size: 32px; color: #8e44ad;"
+                <?php if (empty($phone_url)): ?>opacity: 0.3;<?php endif; ?>
+            ></i>
         </span>
     </div>
 </div>
@@ -163,19 +202,16 @@ $phone_url .= '&fullname='  . urlencode($contactName);
     }
 </style>
 
-<!-- 11) Load jQuery UI unconditionally (so draggable/resizable exist),
-     and load autosizeInput so FusionPBX’s core JS doesn’t break -->
-
-<link  href="/resources/jquery/jquery-ui.min.css" rel="stylesheet"/>
+<!-- 11) Load jQuery UI & autosizeInput unconditionally -->
+<link href="/resources/jquery/jquery-ui.min.css" rel="stylesheet"/>
 <script src="/resources/jquery/jquery-ui.min.js"></script>
 
 <script>
 jQuery(document).ready(function($) {
-
-    // 12) Once the page is ready, attach click handler
+    // Only bind click if phone_url exists
+    <?php if (!empty($phone_url)): ?>
     $('#launch_phone_button').on('click', function() {
-
-        // 12.a) Build the dialog HTML on first click
+        // 11.a) Build dialog HTML on first click
         if ($('#phone-dialog').length === 0) {
             var dialogHtml = '\
                 <div id="phone-dialog">\
@@ -190,7 +226,7 @@ jQuery(document).ready(function($) {
                 </div>';
             $('body').append(dialogHtml);
 
-            // 12.b) Make it draggable
+            // 11.b) Make it draggable
             $('#phone-dialog').draggable({
                 handle: '.phone-dialog-header',
                 containment: 'window',
@@ -204,7 +240,7 @@ jQuery(document).ready(function($) {
                 }
             });
 
-            // 12.c) Make it resizable at the southeast corner
+            // 11.c) Make it resizable at the southeast corner
             $('#phone-dialog').resizable({
                 handles: "se",
                 minWidth: 300,
@@ -216,7 +252,6 @@ jQuery(document).ready(function($) {
                     $('#phone-dialog-iframe').css('pointer-events', 'auto');
                 },
                 resize: function() {
-                    // Keep the iframe sized to fill the container below the header
                     $('#phone-dialog-iframe').css({
                         width:  $('#phone-dialog').width() + 'px',
                         height: ($('#phone-dialog').height() - $('.phone-dialog-header').outerHeight()) + 'px'
@@ -225,25 +260,27 @@ jQuery(document).ready(function($) {
             });
         }
 
-        // 12.d) Center the dialog before showing (in case window was resized)
+        // 11.d) Center the dialog each time
         var dlg = $('#phone-dialog');
         dlg.css({
             left: ($(window).width() - dlg.outerWidth()) / 2 + 'px',
             top:  ($(window).height() - dlg.outerHeight()) / 2 + 'px'
         });
 
-        // 12.e) Load the iframe src & display it
+        // 11.e) Load iframe src & show
         $('#phone-dialog-iframe').attr('src', '<?php echo $phone_url; ?>');
         dlg.show();
     });
+    <?php endif; ?>
 });
 
-// 13) Close dialog on “×” click or Esc key
+// 12) Close dialog
 function closePhoneDialog() {
     jQuery('#phone-dialog').hide();
     jQuery('#phone-dialog-iframe').attr('src', '');
 }
 
+// 13) Close on ESC
 document.addEventListener('keydown', function(e) {
     if (e.key === 'Escape' && jQuery('#phone-dialog').is(':visible')) {
         closePhoneDialog();
