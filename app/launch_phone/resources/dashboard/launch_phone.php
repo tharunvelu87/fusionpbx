@@ -2,13 +2,13 @@
 /*
     popphone.php
     FusionPBX Phone Dashboard Widget (Enhanced Draggable/Resizable)
-    Version: 1.5.1
+    Version: 1.5.2
 
     • Checks permissions
     • Builds the WebRTC-phone URL for the logged-in user
     • Renders a “Launch Phone” icon that does nothing until clicked
     • On click: dynamically creates a jQuery UI dialog (400×600), injects the iframe, and opens it
-    • Always loads jQuery UI (dialog, draggable, resizable) from /resources/jquery
+    • Always loads jQuery UI (draggable, resizable) from /resources/jquery
 */
 
 // 1) Include FusionPBX core
@@ -168,10 +168,9 @@ $phone_url .= '&fullname='  . urlencode($contactName);
 <script src="/resources/jquery/jquery-ui.min.js"></script>
 
 <script>
-// 12) When “Launch Phone” is clicked, create and open the dialog
 jQuery(document).ready(function($) {
     $('#launch_phone_button').on('click', function() {
-        // If dialog doesn’t exist, build it now
+        // 1) If dialog doesn't exist yet, build it
         if ($('#phone-dialog').length === 0) {
             var dialogHtml = '\
                 <div id="phone-dialog">\
@@ -185,46 +184,62 @@ jQuery(document).ready(function($) {
                 </div>';
             $('body').append(dialogHtml);
 
-            // Make it draggable and resizable
+            // 2) Make the dialog draggable
             $('#phone-dialog').draggable({
                 handle: '.phone-dialog-header',
                 containment: 'window',
-                scroll: false
-            }).resizable({
+                scroll: false,
+                iframeFix: true,
+                start: function() {
+                    $('#phone-dialog-iframe').css('pointer-events', 'none');
+                },
+                stop: function() {
+                    $('#phone-dialog-iframe').css('pointer-events', 'auto');
+                }
+            });
+
+            // 3) Make the dialog resizable, with SE handle, and disable iframe pointer-events while resizing
+            $('#phone-dialog').resizable({
+                handles: "se",
                 minWidth: 300,
                 minHeight: 400,
+                start: function() {
+                    $('#phone-dialog-iframe').css('pointer-events', 'none');
+                },
+                stop: function() {
+                    $('#phone-dialog-iframe').css('pointer-events', 'auto');
+                },
                 resize: function() {
-                    // Ensure iframe always fills content area
+                    // Keep the iframe filling the content area
                     $('#phone-dialog-iframe').css({
-                        width: $('#phone-dialog').width() + 'px',
+                        width:  $('#phone-dialog').width() + 'px',
                         height: ($('#phone-dialog').height() - $('.phone-dialog-header').outerHeight()) + 'px'
                     });
                 }
             });
         }
 
-        // Position in center
+        // 4) Center the dialog each time it's opened
         var dlg = $('#phone-dialog');
         dlg.css({
-            left: ( $(window).width() - dlg.outerWidth() ) / 2 + 'px',
-            top:  ( $(window).height() - dlg.outerHeight() ) / 2 + 'px'
+            left: ($(window).width() - dlg.outerWidth()) / 2 + 'px',
+            top:  ($(window).height() - dlg.outerHeight()) / 2 + 'px'
         });
 
-        // Set iframe src and show dialog
+        // 5) Load the iframe and show it
         $('#phone-dialog-iframe').attr('src', '<?php echo $phone_url; ?>');
         dlg.show();
     });
 });
 
-// 13) Close dialog function
+// 6) Close dialog on button or ESC
 function closePhoneDialog() {
-    $('#phone-dialog').hide();
-    $('#phone-dialog-iframe').attr('src', '');
+    jQuery('#phone-dialog').hide();
+    jQuery('#phone-dialog-iframe').attr('src', '');
 }
 
-// 14) Close on ESC
 document.addEventListener('keydown', function(e) {
-    if (e.key === 'Escape' && $('#phone-dialog').is(':visible')) {
+    if (e.key === 'Escape' && jQuery('#phone-dialog').is(':visible')) {
         closePhoneDialog();
     }
 });
