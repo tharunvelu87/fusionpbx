@@ -29,7 +29,7 @@
 	require_once dirname(__DIR__, 2) . "/resources/require.php";
 	require_once "resources/check_auth.php";
 
-//chec permissions
+//check permissions
 	if (permission_exists('call_broadcast_send')) {
 		//access granted
 	}
@@ -93,15 +93,6 @@
 		$broadcast_avmd = $row["broadcast_avmd"];
 		$broadcast_accountcode = $row["broadcast_accountcode"];
 		$broadcast_description = $row["broadcast_description"];
-		//if (empty($row["broadcast_destination_data"])) {
-		//	$broadcast_destination_application = '';
-		//	$broadcast_destination_data = '';
-		//}
-		//else {
-		//	$broadcast_destination_array = explode(":", $row["broadcast_destination_data"]);
-		//	$broadcast_destination_application = $broadcast_destination_array[0];
-		//	$broadcast_destination_data = $broadcast_destination_array[1];
-		//}
 	}
 	unset($sql, $parameters, $row);
 
@@ -113,7 +104,7 @@
 		$broadcast_caller_id_number = "0000000000";
 	}
 	if (empty($broadcast_accountcode)) {
-		$broadcast_accountcode = $_SESSION['domain_name'];;
+		$broadcast_accountcode = $_SESSION['domain_name'];
 	}
 	if (isset($broadcast_start_time) && is_numeric($broadcast_start_time)) {
 		$sched_seconds = $broadcast_start_time;
@@ -121,9 +112,6 @@
 	else {
 		$sched_seconds = '3';
 	}
-
-//get the recording name
-	//$recording_filename = get_recording_filename($recordingid);
 
 //remove unsafe characters from the name
 	$broadcast_name = str_replace(" ", "", $broadcast_name);
@@ -165,31 +153,38 @@
 						$phone_1 = preg_replace('{\D}', '', $tmp_value_array[0]);
 
 					if (is_numeric($phone_1)) {
-						//get the dialplan variables and bridge statement
-							//$dialplan = new dialplan;
-							//$dialplan->domain_uuid = $_SESSION['domain_uuid'];
-							//$dialplan->outbound_routes($phone_1);
-							//$dialplan_variables = $dialplan->variables;
-							//$bridge_array[0] = $dialplan->bridges;
-
-						//prepare the string
+						//prepare the channel variables
 							$channel_variables = "ignore_early_media=true";
 							$channel_variables .= ",origination_number=".$phone_1;
-							$channel_variables .= ",origination_caller_id_name='$broadcast_caller_id_name'";
-							$channel_variables .= ",origination_caller_id_number=$broadcast_caller_id_number";
+							
+							// For local destinations, use the phone number as caller ID
+							if (strpos($broadcast_destination_data, 'user/') === 0 || 
+								strpos($broadcast_destination_data, 'group/') === 0) {
+								$channel_variables .= ",effective_caller_id_name=".$phone_1;
+								$channel_variables .= ",effective_caller_id_number=".$phone_1;
+								$channel_variables .= ",origination_caller_id_name=".$phone_1;
+								$channel_variables .= ",origination_caller_id_number=".$phone_1;
+							}
+							// For external calls, use the broadcast caller ID
+							else {
+								$channel_variables .= ",effective_caller_id_name='$broadcast_caller_id_name'";
+								$channel_variables .= ",effective_caller_id_number=$broadcast_caller_id_number";
+								$channel_variables .= ",origination_caller_id_name='$broadcast_caller_id_name'";
+								$channel_variables .= ",origination_caller_id_number=$broadcast_caller_id_number";
+							}
+							
 							$channel_variables .= ",domain_uuid=".$_SESSION['domain_uuid'];
 							$channel_variables .= ",domain=".$_SESSION['domain_name'];
 							$channel_variables .= ",domain_name=".$_SESSION['domain_name'];
 							$channel_variables .= ",accountcode='$broadcast_accountcode'";
-							$channel_variables .= ",toll_allow='$broadcast_toll_allow'";
 							if ($broadcast_avmd == "true") {
 								$channel_variables .= ",execute_on_answer='avmd start'";
 							}
-							//$origination_url = "{".$channel_variables."}".$bridge_array[0];
+							
 							$origination_url = "{".$channel_variables."}loopback/".$phone_1.'/'.$_SESSION['domain_name'];
 
 						//get the context
-							$context =  $_SESSION['domain_name'];
+							$context = $_SESSION['domain_name'];
 
 						//set the command
 							$cmd = "bgapi sched_api +".$sched_seconds." ".$call_broadcast_uuid." bgapi originate ".$origination_url." ".$broadcast_destination_data." XML $context";
@@ -199,11 +194,8 @@
 								$fp = event_socket::create();
 							}
 
-						//method 1
+						//execute the command
 							$response = event_socket::command($cmd);
-
-						//method 2
-							//cmd_async($_SESSION['switch']['bin']['dir']."/fs_cli -x \"".$cmd."\";");
 
 						//spread the calls out so that they are scheduled with different times
 							if (strlen($broadcast_concurrent_limit) > 0 && !empty($broadcast_timeout)) {
@@ -246,5 +238,4 @@
 		//show the footer
 			require_once "resources/footer.php";
 	}
-
 ?>

@@ -465,7 +465,7 @@ if (!empty($_POST) && empty($_POST["persistformvar"])) {
 		echo "	".$text['label-callerid-number']."\n";
 		echo "</td>\n";
 		echo "<td class='vtable' align='left'>\n";
-		echo "	<input class='formfld' type='number' name='broadcast_caller_id_number' maxlength='255' min='0' step='1' value=\"".escape($broadcast_caller_id_number)."\">\n";
+		echo "    <input class='formfld' type='text' name='broadcast_caller_id_number' maxlength='25' pattern=\"\\+?[0-9]+\" value=\"".escape($broadcast_caller_id_number)."\">\n";
 		echo "<br />\n";
 		echo "".$text['description-caller-id-number']."\n";
 		echo "</td>\n";
