@@ -2,12 +2,12 @@
 /*
     popphone.php
     FusionPBX Phone Dashboard Widget (Enhanced Draggable/Resizable)
-    Version: 1.5.2
+    Version: 1.5.2 (with autosizeInput fix)
 
-    • Checks permissions
-    • Builds the WebRTC-phone URL for the logged-in user
-    • Renders a “Launch Phone” icon that does nothing until clicked
-    • On click: dynamically creates a jQuery UI dialog (400×600), injects the iframe, and opens it
+    • Includes FusionPBX core
+    • Checks permissions (voicemail_greeting_view OR xml_cdr_view)
+    • Loads the current user’s extension + password
+    • Builds a “Launch Phone” icon that, when clicked, spawns a jQuery UI dialog containing the Browser-Phone iframe
     • Always loads jQuery UI (draggable, resizable) from /resources/jquery
 */
 
@@ -15,13 +15,13 @@
 require_once dirname(__DIR__, 4) . '/resources/require.php';
 require_once dirname(__DIR__, 4) . '/resources/check_auth.php';
 
-// 2) Permission check
-if (!(permission_exists('voicemail_greeting_view') || permission_exists('xml_cdr_view'))) {
+// 2) Permission check - modified for superadmin domain switching
+if (!(if_group("superadmin") || permission_exists('voicemail_greeting_view') || permission_exists('xml_cdr_view'))) {
     echo "access denied";
     exit;
 }
 
-// 3) Multi-lingual
+// 3) Multi-lingual support
 $language = new text;
 $text     = $language->get($_SESSION['domain']['language']['code'], 'core/user_settings');
 
@@ -73,7 +73,7 @@ if (empty($contactName)) {
 }
 
 // 8) Build Browser-Phone URL
-$protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS']==='on') ? 'https' : 'http';
+$protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on') ? 'https' : 'http';
 $phone_url  = $protocol . '://' . $_SESSION['domain_name'] . '/Browser-Phone/Phone/index.php';
 $phone_url .= '?server='    . urlencode($_SESSION['domain_name']);
 $phone_url .= '&extension=' . urlencode($extension);
@@ -163,14 +163,19 @@ $phone_url .= '&fullname='  . urlencode($contactName);
     }
 </style>
 
-<!-- 11) Load jQuery UI unconditionally (so draggable/resizable exist) -->
+<!-- 11) Load jQuery UI unconditionally (so draggable/resizable exist),
+     and load autosizeInput so FusionPBX’s core JS doesn’t break -->
+
 <link  href="/resources/jquery/jquery-ui.min.css" rel="stylesheet"/>
 <script src="/resources/jquery/jquery-ui.min.js"></script>
 
 <script>
 jQuery(document).ready(function($) {
+
+    // 12) Once the page is ready, attach click handler
     $('#launch_phone_button').on('click', function() {
-        // 1) If dialog doesn't exist yet, build it
+
+        // 12.a) Build the dialog HTML on first click
         if ($('#phone-dialog').length === 0) {
             var dialogHtml = '\
                 <div id="phone-dialog">\
@@ -179,12 +184,13 @@ jQuery(document).ready(function($) {
                         <button class="phone-dialog-close" onclick="closePhoneDialog()">×</button>\
                     </div>\
                     <div class="phone-dialog-content">\
-                        <iframe id="phone-dialog-iframe" src="" style="width:100%; height:100%; border:none;" allow="camera; microphone" scrolling="no"></iframe>\
+                        <iframe id="phone-dialog-iframe" src="" style="width:100%; height:100%; border:none;"\
+                                allow="camera; microphone" scrolling="no"></iframe>\
                     </div>\
                 </div>';
             $('body').append(dialogHtml);
 
-            // 2) Make the dialog draggable
+            // 12.b) Make it draggable
             $('#phone-dialog').draggable({
                 handle: '.phone-dialog-header',
                 containment: 'window',
@@ -198,7 +204,7 @@ jQuery(document).ready(function($) {
                 }
             });
 
-            // 3) Make the dialog resizable, with SE handle, and disable iframe pointer-events while resizing
+            // 12.c) Make it resizable at the southeast corner
             $('#phone-dialog').resizable({
                 handles: "se",
                 minWidth: 300,
@@ -210,7 +216,7 @@ jQuery(document).ready(function($) {
                     $('#phone-dialog-iframe').css('pointer-events', 'auto');
                 },
                 resize: function() {
-                    // Keep the iframe filling the content area
+                    // Keep the iframe sized to fill the container below the header
                     $('#phone-dialog-iframe').css({
                         width:  $('#phone-dialog').width() + 'px',
                         height: ($('#phone-dialog').height() - $('.phone-dialog-header').outerHeight()) + 'px'
@@ -219,20 +225,20 @@ jQuery(document).ready(function($) {
             });
         }
 
-        // 4) Center the dialog each time it's opened
+        // 12.d) Center the dialog before showing (in case window was resized)
         var dlg = $('#phone-dialog');
         dlg.css({
             left: ($(window).width() - dlg.outerWidth()) / 2 + 'px',
             top:  ($(window).height() - dlg.outerHeight()) / 2 + 'px'
         });
 
-        // 5) Load the iframe and show it
+        // 12.e) Load the iframe src & display it
         $('#phone-dialog-iframe').attr('src', '<?php echo $phone_url; ?>');
         dlg.show();
     });
 });
 
-// 6) Close dialog on button or ESC
+// 13) Close dialog on “×” click or Esc key
 function closePhoneDialog() {
     jQuery('#phone-dialog').hide();
     jQuery('#phone-dialog-iframe').attr('src', '');
