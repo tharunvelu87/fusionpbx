@@ -1,54 +1,67 @@
 <?php
 /*
     popphone.php
-    FusionPBX Phone Dashboard Widget (Non-modal version)
-    Version: MPL 1.1
+    FusionPBX Phone Dashboard Widget (Enhanced Draggable/Resizable)
+    Version: 1.5.1
+
+    • Checks permissions
+    • Builds the WebRTC-phone URL for the logged-in user
+    • Renders a “Launch Phone” icon that does nothing until clicked
+    • On click: dynamically creates a jQuery UI dialog (400×600), injects the iframe, and opens it
+    • Always loads jQuery UI (dialog, draggable, resizable) from /resources/jquery
 */
 
-// Include FusionPBX resources.
+// 1) Include FusionPBX core
 require_once dirname(__DIR__, 4) . '/resources/require.php';
 require_once dirname(__DIR__, 4) . '/resources/check_auth.php';
 
-// Check permissions.
+// 2) Permission check
 if (!(permission_exists('voicemail_greeting_view') || permission_exists('xml_cdr_view'))) {
     echo "access denied";
     exit;
 }
 
-// Multi-lingual support.
+// 3) Multi-lingual
 $language = new text;
-$text = $language->get($_SESSION['domain']['language']['code'], 'core/user_settings');
+$text     = $language->get($_SESSION['domain']['language']['code'], 'core/user_settings');
 
-// Retrieve current user's extension details.
+// 4) Fetch the user’s extension_uuid
 $sql = "
     SELECT extension_uuid
-    FROM v_extension_users
-    WHERE domain_uuid = :domain_uuid
-      AND user_uuid   = :user_uuid
+      FROM v_extension_users
+     WHERE domain_uuid = :domain_uuid
+       AND user_uuid   = :user_uuid
 ";
 $params = [
     'domain_uuid' => $_SESSION['domain_uuid'],
     'user_uuid'   => $_SESSION['user_uuid']
 ];
-$database = new database;
+$database       = new database;
 $extension_uuid = $database->select($sql, $params, 'column');
 
+// 5) Fetch extension and password
 $sql = "
     SELECT extension, password
-    FROM v_extensions
-    WHERE extension_uuid = :extension_uuid
+      FROM v_extensions
+     WHERE extension_uuid = :extension_uuid
 ";
 $params = ['extension_uuid' => $extension_uuid];
-$row = $database->select($sql, $params, 'row');
+$row    = $database->select($sql, $params, 'row');
 $extension = $row['extension'] ?? null;
-$password  = $row['password'] ?? null;
+$password  = $row['password']  ?? null;
 
-// Retrieve contact name (real name) for display.
+// 6) If missing, deny
+if (empty($extension) || empty($password)) {
+    echo "access denied";
+    exit;
+}
+
+// 7) Fetch contact_name (fallback to extension)
 $sql = "
     SELECT contact_name
-    FROM view_users
-    WHERE domain_name = :domain_name
-      AND username    = :username
+      FROM view_users
+     WHERE domain_name = :domain_name
+       AND username    = :username
 ";
 $params = [
     'domain_name' => $_SESSION['domain_name'],
@@ -59,110 +72,160 @@ if (empty($contactName)) {
     $contactName = $extension;
 }
 
-// Build the dynamic Browser Phone URL.
-$phone_url  = "https://" . $_SESSION['domain_name'] . "/Browser-Phone/Phone/index.php";
-$phone_url .= "?server="    . urlencode($_SESSION['domain_name']);
-$phone_url .= "&extension=" . urlencode($extension);
-$phone_url .= "&password="  . urlencode($password);
-$phone_url .= "&fullname="  . urlencode($contactName);
+// 8) Build Browser-Phone URL
+$protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS']==='on') ? 'https' : 'http';
+$phone_url  = $protocol . '://' . $_SESSION['domain_name'] . '/Browser-Phone/Phone/index.php';
+$phone_url .= '?server='    . urlencode($_SESSION['domain_name']);
+$phone_url .= '&extension=' . urlencode($extension);
+$phone_url .= '&password='  . urlencode($password);
+$phone_url .= '&fullname='  . urlencode($contactName);
 ?>
 
-<!-- 
-    PopPhone Widget Markup:
-    Uses a fixed height (90px) with a table display on .hud_content to vertically center
-    the title and icon in the same manner as other FusionPBX dashboard widgets.
--->
+<!-- 9) Dashboard widget box (nothing happens until click) -->
 <div class="hud_box" id="hud_phone_widget">
-    <div class="hud_content" onclick="OpenPhoneWindow();" style="cursor: pointer;">
+    <div class="hud_content" id="launch_phone_button" style="cursor: pointer;">
         <span class="hud_title">
             <?php echo $text['label-launch_phone'] ?? 'Launch Phone'; ?>
         </span>
         <span class="hud_stat">
-            <!-- Using purple (#8e44ad). Change to green (#27ae60) or orange (#e67e22) if desired -->
             <i class="fas fa-phone" style="font-size: 32px; color: #8e44ad;"></i>
         </span>
     </div>
 </div>
 
-<!-- CSS for aligning with other dashboard widgets -->
+<!-- 10) CSS to match FusionPBX dashboard style -->
 <style>
-    /* The widget container uses a fixed height of 90px to match others */
     #hud_phone_widget {
         height: 90px;
         padding: 0 10px;
         margin-bottom: 10px;
     }
-    /* Use a table display on the content container for vertical centering */
     .hud_content {
         display: table;
         width: 100%;
         height: 100%;
     }
-    /* Table-cell display for title and stat allows vertical centering */
-    .hud_title,
-    .hud_stat {
+    .hud_title, .hud_stat {
         display: table-cell;
         vertical-align: middle;
     }
     .hud_stat {
         text-align: right;
     }
-    /* Hover effect to match theme */
     #hud_phone_widget:hover {
         background-color: #f3f3f3;
     }
-    /* Ensure any dialogs do not override the widget styling */
-    .ui-dialog .ui-dialog-content {
-        padding: 0 !important;
-        margin: 0 !important;
-        overflow: hidden !important;
+
+    /* Dialog container */
+    #phone-dialog {
+        position: fixed;
+        width: 400px;
+        height: 600px;
+        background: #fff;
+        border: 1px solid #ddd;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        z-index: 1000;
+        display: none;
+        border-radius: 3px;
+    }
+    #phone-dialog .phone-dialog-header {
+        padding: 5px 8px;
+        background: #f5f5f5;
+        border-bottom: 1px solid #ddd;
+        cursor: move;
+        font-size: 12px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+    #phone-dialog .phone-dialog-title {
+        font-weight: bold;
+        color: #555;
+    }
+    #phone-dialog .phone-dialog-close {
+        background: none;
+        border: none;
+        font-size: 16px;
+        cursor: pointer;
+        padding: 0;
+        color: #777;
+        line-height: 1;
+    }
+    #phone-dialog .phone-dialog-close:hover {
+        color: #333;
+    }
+    #phone-dialog .phone-dialog-content {
+        width: 100%;
+        height: calc(100% - 30px);
+        padding: 0;
+        margin: 0;
+        overflow: hidden;
     }
 </style>
 
-<!-- Include jQuery & jQuery UI if not already loaded -->
-<script src="https://dtd6jl0d42sve.cloudfront.net/lib/jquery/jquery-3.3.1.min.js"></script>
-<script src="https://dtd6jl0d42sve.cloudfront.net/lib/jquery/jquery-ui.min.js"></script>
-<link rel="stylesheet" href="https://dtd6jl0d42sve.cloudfront.net/lib/jquery/jquery-ui.min.css"/>
+<!-- 11) Load jQuery UI unconditionally (so draggable/resizable exist) -->
+<link  href="/resources/jquery/jquery-ui.min.css" rel="stylesheet"/>
+<script src="/resources/jquery/jquery-ui.min.js"></script>
 
-<!-- JavaScript function to open the Browser Phone interface in a non-modal dialog -->
-<script type="text/javascript">
-function OpenPhoneWindow() {
-    var phoneUrl = "<?php echo $phone_url; ?>";
-    var width  = 400;
-    var height = 700;
+<script>
+// 12) When “Launch Phone” is clicked, create and open the dialog
+jQuery(document).ready(function($) {
+    $('#launch_phone_button').on('click', function() {
+        // If dialog doesn’t exist, build it now
+        if ($('#phone-dialog').length === 0) {
+            var dialogHtml = '\
+                <div id="phone-dialog">\
+                    <div class="phone-dialog-header">\
+                        <span class="phone-dialog-title"><?php echo $text['label-browser_phone'] ?? 'Browser Phone'; ?></span>\
+                        <button class="phone-dialog-close" onclick="closePhoneDialog()">×</button>\
+                    </div>\
+                    <div class="phone-dialog-content">\
+                        <iframe id="phone-dialog-iframe" src="" style="width:100%; height:100%; border:none;" allow="camera; microphone" scrolling="no"></iframe>\
+                    </div>\
+                </div>';
+            $('body').append(dialogHtml);
 
-    // Create an iframe for the Browser Phone interface.
-    var $iframe = $("<iframe>", {
-        src: phoneUrl,
-        css: { width: "100%", height: "100%" },
-        attr: {
-            frameborder: "0",
-            allow: "camera; microphone",
-            scrolling: "no"
+            // Make it draggable and resizable
+            $('#phone-dialog').draggable({
+                handle: '.phone-dialog-header',
+                containment: 'window',
+                scroll: false
+            }).resizable({
+                minWidth: 300,
+                minHeight: 400,
+                resize: function() {
+                    // Ensure iframe always fills content area
+                    $('#phone-dialog-iframe').css({
+                        width: $('#phone-dialog').width() + 'px',
+                        height: ($('#phone-dialog').height() - $('.phone-dialog-header').outerHeight()) + 'px'
+                    });
+                }
+            });
         }
-    });
 
-    // Create the jQuery UI dialog (modeless).
-    var $window = $("<div>").html($iframe).dialog({
-        title: "<?php echo $text['label-browser_phone'] ?? 'Browser Phone'; ?>",
-        modal: false,
-        width: width,
-        height: height,
-        resizable: true,
-        draggable: true,
-        close: function(){
-            $(this).dialog("destroy").remove();
-        }
-    });
+        // Position in center
+        var dlg = $('#phone-dialog');
+        dlg.css({
+            left: ( $(window).width() - dlg.outerWidth() ) / 2 + 'px',
+            top:  ( $(window).height() - dlg.outerHeight() ) / 2 + 'px'
+        });
 
-    // Center the dialog on screen.
-    var windowWidth  = $(window).width();
-    var windowHeight = $(window).height();
-    $window.parent().css({
-        left: (windowWidth - width) / 2 + "px",
-        top:  (windowHeight - height) / 2 + "px",
-        position: "fixed",
-        zIndex: 9999
+        // Set iframe src and show dialog
+        $('#phone-dialog-iframe').attr('src', '<?php echo $phone_url; ?>');
+        dlg.show();
     });
+});
+
+// 13) Close dialog function
+function closePhoneDialog() {
+    $('#phone-dialog').hide();
+    $('#phone-dialog-iframe').attr('src', '');
 }
+
+// 14) Close on ESC
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape' && $('#phone-dialog').is(':visible')) {
+        closePhoneDialog();
+    }
+});
 </script>
