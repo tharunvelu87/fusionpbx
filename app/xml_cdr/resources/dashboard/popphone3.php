@@ -111,25 +111,32 @@ if (!empty($extension) && !empty($password)) {
 
 <!-- 9) Dashboard widget box (clicking only works if an extension was found) -->
 <div class="hud_box" id="hud_phone_widget">
+  <?php if (!empty($phone_url)): ?>
+    <!-- user has an extension → clickable -->
     <div
-        class="hud_content"
-        id="launch_phone_button"
-        style="cursor: <?php echo (!empty($phone_url)) ? 'pointer' : 'default'; ?>;"
-        <?php if (!empty($phone_url)): ?>
-            onclick="openPhoneDialog();"
-        <?php endif; ?>
+      class="hud_content"
+      id="launch_phone_button"
+      style="cursor: pointer;"
+      onclick="openPhoneDialog();"
     >
-        <span class="hud_title">
-            <?php echo $text['label-launch_phone'] ?? 'Launch Phone'; ?>
-        </span>
-        <span class="hud_stat">
-            <i
-                class="fas fa-phone"
-                style="font-size: 32px; color: #8e44ad;"
-                <?php if (empty($phone_url)): ?>opacity: 0.3;<?php endif; ?>
-            ></i>
-        </span>
+      <span class="hud_title">
+        <?php echo $text['label-launch_phone'] ?? 'Launch Phone'; ?>
+      </span>
+      <span class="hud_stat">
+        <i class="fas fa-phone" style="font-size: 32px; color: #8e44ad;"></i>
+      </span>
     </div>
+  <?php else: ?>
+    <!-- no extension → show error -->
+    <div class="hud_content" style="color: #e74c3c; cursor: default;">
+      <span class="hud_title">
+        <?php echo $text['label-no_extension'] ?? 'No extension assigned'; ?>
+      </span>
+      <span class="hud_stat">
+        <i class="fas fa-exclamation-triangle" style="font-size: 32px;"></i>
+      </span>
+    </div>
+  <?php endif; ?>
 </div>
 
 <!-- 10) CSS to match FusionPBX dashboard style -->
