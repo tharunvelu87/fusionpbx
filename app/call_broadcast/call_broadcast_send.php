@@ -12,17 +12,6 @@
 	WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
 	for the specific language governing rights and limitations under the
 	License.
-
-	The Original Code is FusionPBX
-
-	The Initial Developer of the Original Code is
-	Mark J Crane <markjcrane@fusionpbx.com>
-	Portions created by the Initial Developer are Copyright (C) 2008-2020
-	the Initial Developer. All Rights Reserved.
-
-	Contributor(s):
-	Mark J Crane <markjcrane@fusionpbx.com>
-	Luis Daniel Lucio Quiroz <dlucio@okay.com.mx>
 */
 
 //includes files
@@ -45,31 +34,8 @@
 //set the max execution time to 1 hour
 	ini_set('max_execution_time',3600);
 
-//define the asynchronous command function
-	function cmd_async($cmd) {
-		//windows
-		if (stristr(PHP_OS, 'WIN')) {
-			$descriptorspec = array(
-				0 => array("pipe", "r"),  // stdin
-				1 => array("pipe", "w"),  // stdout
-				2 => array("pipe", "w")   // stderr
-			);
-			$process = proc_open("start ".$cmd, $descriptorspec, $pipes);
-			//sleep(1);
-			proc_close($process);
-		}
-		else { //posix
-			exec ($cmd ." /dev/null 2>&1 &");
-		}
-	}
-
 //get the http get values and set as php variables
-	$group_name = $_GET["group_name"] ?? '';
 	$call_broadcast_uuid = $_GET["id"] ?? '';
-	$user_category = $_GET["user_category"] ?? '';
-	$gateway = $_GET["gateway"] ?? '';
-	$phonetype1 = $_GET["phonetype1"] ?? '';
-	$phonetype2 = $_GET["phonetype2"] ?? '';
 
 //get the call broadcast details from the database
 	$sql = "select * from v_call_broadcasts ";
@@ -84,38 +50,19 @@
 		$broadcast_start_time = $row["broadcast_start_time"];
 		$broadcast_timeout = $row["broadcast_timeout"];
 		$broadcast_concurrent_limit = $row["broadcast_concurrent_limit"];
-		$recordingid = $row["recordingid"] ?? '';
-		$broadcast_caller_id_name = $row["broadcast_caller_id_name"];
-		$broadcast_caller_id_number = $row["broadcast_caller_id_number"];
-		$broadcast_destination_type = $row["broadcast_destination_type"];
+		$broadcast_caller_id_name = $row["broadcast_caller_id_name"] ?? "anonymous";
+		$broadcast_caller_id_number = $row["broadcast_caller_id_number"] ?? "0000000000";
 		$broadcast_phone_numbers = $row["broadcast_phone_numbers"];
 		$broadcast_destination_data = $row["broadcast_destination_data"];
 		$broadcast_avmd = $row["broadcast_avmd"];
-		$broadcast_accountcode = $row["broadcast_accountcode"];
-		$broadcast_description = $row["broadcast_description"];
+		$broadcast_accountcode = $row["broadcast_accountcode"] ?? $_SESSION['domain_name'];
 	}
-	unset($sql, $parameters, $row);
 
-//set the defaults
-	if (empty($broadcast_caller_id_name)) {
-		$broadcast_caller_id_name = "anonymous";
-	}
-	if (empty($broadcast_caller_id_number)) {
-		$broadcast_caller_id_number = "0000000000";
-	}
-	if (empty($broadcast_accountcode)) {
-		$broadcast_accountcode = $_SESSION['domain_name'];
-	}
-	if (isset($broadcast_start_time) && is_numeric($broadcast_start_time)) {
-		$sched_seconds = $broadcast_start_time;
-	}
-	else {
-		$sched_seconds = '3';
-	}
+//set the schedule time
+	$sched_seconds = (isset($broadcast_start_time) && is_numeric($broadcast_start_time)) ? $broadcast_start_time : 3;
 
 //remove unsafe characters from the name
-	$broadcast_name = str_replace(" ", "", $broadcast_name);
-	$broadcast_name = str_replace("'", "", $broadcast_name);
+	$broadcast_name = str_replace([" ", "'"], "", $broadcast_name);
 
 //create the event socket connection
 	$fp = event_socket::create();
@@ -123,119 +70,79 @@
 //get information over event socket
 	if (!$fp) {
 		require_once "resources/header.php";
-		$msg = "<div align='center'>Connection to Event Socket failed.<br /></div>";
-		echo "<div align='center'>\n";
-		echo "<table width='40%'>\n";
-		echo "<tr>\n";
-		echo "<th align='left'>".$text['label-message']."</th>\n";
-		echo "</tr>\n";
-		echo "<tr>\n";
-		echo "<td class='row_style1'><strong>$msg</strong></td>\n";
-		echo "</tr>\n";
-		echo "</table>\n";
-		echo "</div>\n";
+		echo "<div align='center'>Connection to Event Socket failed.<br /></div>";
 		require_once "resources/footer.php";
+		exit;
 	}
-	else {
-		//show the header
-			require_once "resources/header.php";
 
-		//send the call broadcast
-			if (!empty($broadcast_phone_numbers)) {
-				$broadcast_phone_number_array = explode ("\n", $broadcast_phone_numbers);
-				$count = 1;
-				foreach ($broadcast_phone_number_array as $tmp_value) {
-					//set the variables
-						$tmp_value = str_replace(";", "|", $tmp_value);
-						$tmp_value_array = explode ("|", $tmp_value);
+//show the header
+	require_once "resources/header.php";
 
-					//remove the number formatting
-						$phone_1 = preg_replace('{\D}', '', $tmp_value_array[0]);
+//send the call broadcast
+	if (!empty($broadcast_phone_numbers)) {
+		$broadcast_phone_number_array = explode("\n", $broadcast_phone_numbers);
+		$count = 1;
+		
+		foreach ($broadcast_phone_number_array as $tmp_value) {
+			//clean and parse the phone number
+			$tmp_value = str_replace(";", "|", $tmp_value);
+			$phone_number = preg_replace('{\D}', '', explode("|", $tmp_value)[0]);
 
-					if (is_numeric($phone_1)) {
-						//prepare the channel variables
-							$channel_variables = "ignore_early_media=true";
-							$channel_variables .= ",origination_number=".$phone_1;
-							
-							// For local destinations, use the phone number as caller ID
-							if (strpos($broadcast_destination_data, 'user/') === 0 || 
-								strpos($broadcast_destination_data, 'group/') === 0) {
-								$channel_variables .= ",effective_caller_id_name=".$phone_1;
-								$channel_variables .= ",effective_caller_id_number=".$phone_1;
-								$channel_variables .= ",origination_caller_id_name=".$phone_1;
-								$channel_variables .= ",origination_caller_id_number=".$phone_1;
-							}
-							// For external calls, use the broadcast caller ID
-							else {
-								$channel_variables .= ",effective_caller_id_name='$broadcast_caller_id_name'";
-								$channel_variables .= ",effective_caller_id_number=$broadcast_caller_id_number";
-								$channel_variables .= ",origination_caller_id_name='$broadcast_caller_id_name'";
-								$channel_variables .= ",origination_caller_id_number=$broadcast_caller_id_number";
-							}
-							
-							$channel_variables .= ",domain_uuid=".$_SESSION['domain_uuid'];
-							$channel_variables .= ",domain=".$_SESSION['domain_name'];
-							$channel_variables .= ",domain_name=".$_SESSION['domain_name'];
-							$channel_variables .= ",accountcode='$broadcast_accountcode'";
-							if ($broadcast_avmd == "true") {
-								$channel_variables .= ",execute_on_answer='avmd start'";
-							}
-							
-							$origination_url = "{".$channel_variables."}loopback/".$phone_1.'/'.$_SESSION['domain_name'];
-
-						//get the context
-							$context = $_SESSION['domain_name'];
-
-						//set the command
-							$cmd = "bgapi sched_api +".$sched_seconds." ".$call_broadcast_uuid." bgapi originate ".$origination_url." ".$broadcast_destination_data." XML $context";
-
-						//if the event socket connection is lost then re-connect
-							if (!$fp) {
-								$fp = event_socket::create();
-							}
-
-						//execute the command
-							$response = event_socket::command($cmd);
-
-						//spread the calls out so that they are scheduled with different times
-							if (strlen($broadcast_concurrent_limit) > 0 && !empty($broadcast_timeout)) {
-								if ($broadcast_concurrent_limit == $count) {
-									$sched_seconds = $sched_seconds + $broadcast_timeout;
-									$count=0;
-								}
-							}
-
-						$count++;
-					}
+			if (is_numeric($phone_number)) {
+				//prepare the channel variables
+				$channel_variables = [
+					"ignore_early_media=true",
+					"origination_caller_id_name='$broadcast_caller_id_name'",  // Outbound caller ID
+					"origination_caller_id_number=$broadcast_caller_id_number", // Outbound caller ID
+					"effective_caller_id_number=$phone_number",  // What the destination sees
+					"effective_caller_id_name=$phone_number",    // What the destination sees
+					"domain_uuid=".$_SESSION['domain_uuid'],
+					"domain_name=".$_SESSION['domain_name'],
+					"accountcode='$broadcast_accountcode'"
+				];
+				
+				//add AVMD if enabled
+				if ($broadcast_avmd == "true") {
+					$channel_variables[] = "execute_on_answer='avmd start'";
 				}
 				
-				echo "<div align='center'>\n";
-				echo "<table width='50%'>\n";
-				echo "<tr>\n";
-				echo "<th align='left'>Message</th>\n";
-				echo "</tr>\n";
-				echo "<tr>\n";
-				echo "<td class='row_style1' align='center'>\n";
-				echo "	<strong>".$text['label-call-broadcast']." ".$broadcast_name." ".$text['label-has-been']."</strong>\n";
-
-				if (permission_exists('call_active_view')) {
-					echo "	<br /><br />\n";
-					echo "	<table width='100%'>\n";
-					echo "	<tr>\n";
-					echo "	<td align='center'>\n";
-					echo "		<a href='".PROJECT_PATH."/app/calls_active/calls_active.php'>".$text['label-view-calls']."</a>\n";
-					echo "	</td>\n";
-					echo "	</table>\n";
+				//create the originate string
+				$channel_vars_string = implode(",", $channel_variables);
+				$origination_url = "{".$channel_vars_string."}loopback/$phone_number/".$_SESSION['domain_name'];
+				$context = $_SESSION['domain_name'];
+				
+				//build the command
+				$cmd = "bgapi sched_api +".$sched_seconds." ".$call_broadcast_uuid." bgapi originate ".$origination_url." ".$broadcast_destination_data." XML $context";
+				
+				//execute the command
+				$response = event_socket::command($cmd);
+				
+				//throttle calls if concurrent limit is set
+				if (!empty($broadcast_concurrent_limit) && $broadcast_concurrent_limit == $count) {
+					$sched_seconds += $broadcast_timeout;
+					$count = 0;
 				}
-
-				echo "</td>\n";
-				echo "</tr>\n";
-				echo "</table>\n";
-				echo "</div>\n";
-
+				
+				$count++;
 			}
-
-		//show the footer
-			require_once "resources/footer.php";
+		}
+		
+		//show success message
+		echo "<div align='center'>";
+		echo "<table width='50%'>";
+		echo "<tr><th align='left'>Message</th></tr>";
+		echo "<tr><td class='row_style1' align='center'>";
+		echo "<strong>".$text['label-call-broadcast']." ".$broadcast_name." ".$text['label-has-been']."</strong>";
+		
+		if (permission_exists('call_active_view')) {
+			echo "<br /><br /><table width='100%'><tr><td align='center'>";
+			echo "<a href='".PROJECT_PATH."/app/calls_active/calls_active.php'>".$text['label-view-calls']."</a>";
+			echo "</td></tr></table>";
+		}
+		
+		echo "</td></tr></table></div>";
 	}
+
+//show the footer
+	require_once "resources/footer.php";
 ?>
