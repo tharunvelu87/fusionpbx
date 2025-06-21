@@ -545,14 +545,14 @@
 							//ring group or multi destination bridge statement
 							$missed_call = 'false';
 						}
+						if (isset($xml->variables->billsec) && $xml->variables->billsec > 0) {
+							//answered call
+							$missed_call = 'false';
+						}
 						if (isset($xml->variables->cc_side) && $xml->variables->cc_side == 'member'
 							&& isset($xml->variables->cc_cause) && $xml->variables->cc_cause == 'cancel') {
 							//call center
 							$missed_call = 'true';
-						}
-						if (isset($xml->variables->billsec) && $xml->variables->billsec > 0) {
-							//answered call
-							$missed_call = 'false';
 						}
 						if (isset($xml->variables->destination_number) && substr($xml->variables->destination_number, 0, 3) == '*99') {
 							//voicemail
@@ -1454,6 +1454,7 @@
 					$text2 = $language2->get($this->settings->get('domain', 'language'), 'app/'.($app['application'] ?? ''));
 					$call_flow_summary[$x]["application_name"] = ($app['application'] ?? '');
 					$call_flow_summary[$x]["application_label"] = trim($text2['title-'.($app['application'] ?? '')] ?? '');
+					$call_flow_summary[$x]["application_icon"] = array("call_centers" => "fa-headset", "call_flows" => "fa-share-nodes", "conferences" => "fa-comments", "destinations" => "fa-right-to-bracket", "dialplans" => "fa-right-left", "extensions" => "fa-suitcase", "ivr_menus" => "fa-diagram-project", "ring_groups" => "fa-users", "time_conditions" => "fa-clock", "voicemails" => "fa-envelope");
 					$call_flow_summary[$x]["call_direction"] = $this->call_direction;
 
 					$call_flow_summary[$x]["application_url"] = $application_url;
