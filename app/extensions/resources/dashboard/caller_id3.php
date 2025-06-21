@@ -187,11 +187,6 @@ $toggle = ($dashboard_details_state === 'disabled')
     </form>
   </div>
 
-  <!-- Bottom expander bar -->
-  <span class="hud_expander" <?php echo $toggle; ?>>
-    <span class="fas fa-ellipsis-h"></span>
-  </span>
-
 </div>
 
 <style>
@@ -204,13 +199,13 @@ $toggle = ($dashboard_details_state === 'disabled')
     padding: 1rem;
   }
   #caller_id_widget .hud_stat {
-    font-size: 1.5rem;
-    margin-right: 0.5rem;
+    font-size: 3rem;
+    margin-right: 1rem;
   }
   #caller_id_widget .hud_badge {
     position: absolute;
-    top: 8px;
-    right: 4px;
+    top: 40px;
+    right: 135px;
     background-color: #ea4c46;
     color: #fff;
     font-size: 0.85rem;
@@ -220,9 +215,9 @@ $toggle = ($dashboard_details_state === 'disabled')
     white-space: nowrap;
   }
   #caller_id_widget .hud_title {
-    font-size: 1rem;
+    font-size: 0.75rem;
     color: #333;
-    margin-left: 1rem;
+
   }
   #caller_id_widget .hud_details h4 {
   font-size: 0.75rem;      /* smaller than the default */
