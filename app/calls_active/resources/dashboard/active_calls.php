@@ -174,7 +174,7 @@ $toggle = ($dashboard_details_state==='disabled')
   <div class="hud_content"<?php echo $toggle;?>>
     <span class="hud_title"><?php echo $text['label-active_calls'] ?? 'Active Calls';?></span>
     <div style="position:relative;display:inline-block;margin:0.5rem 0;">
-      <span class="hud_stat"><i class="<?php echo htmlspecialchars($dashboard_icon?:'fas fa-phone');?>"></i></span>
+      <span class="hud_stat"><i class="<?php echo htmlspecialchars($dashboard_icon?:'fas fa-phone-volume');?>"></i></span>
       <span id="active_calls_count" style="
         position:absolute;top:22px;left:24px;
         background:<?php echo $settings->get('theme','dashboard_number_background_color')?:'#ea4c46';?>;
@@ -203,7 +203,7 @@ $toggle = ($dashboard_details_state==='disabled')
     </div>
   <?php endif; ?>
 
-  <span class="hud_expander"<?php echo $toggle;?>><span class="fas fa-ellipsis-h"></span></span>
+
 </div>
 
 <style>
@@ -226,6 +226,6 @@ jQuery(function($){
   }
   refreshActiveCalls();
   setInterval(refreshActiveCalls,1000);
-  $('#active_calls_widget').on('click','.hud_content,.hud_expander',refreshActiveCalls);
+  $('#active_calls_widget').on('click','.hud_content',refreshActiveCalls);
 });
 </script>

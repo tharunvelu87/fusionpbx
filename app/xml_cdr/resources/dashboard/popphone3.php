@@ -93,9 +93,6 @@ $text     = $language->get($_SESSION['domain']['language']['code'], 'core/user_s
 <style>
   /* dashboard widget */
 #hud_phone_widget {
-  height: 90px;
-  padding: 0 10px;
-  margin-bottom: 10px;
 }
 .hud_content {
   display: table;

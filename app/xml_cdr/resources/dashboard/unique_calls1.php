@@ -57,7 +57,7 @@ SELECT * FROM (
     WHERE domain_uuid = :domain_uuid
       AND direction = 'inbound'
       AND hangup_cause <> 'LOSE_RACE'
-      AND start_epoch > " . (time() - 86400) . "
+      AND start_epoch > " . (time() - 43200) . "
 ) AS sub
 WHERE rn = 1
 ORDER BY start_stamp DESC
@@ -243,7 +243,7 @@ if ($dashboard_details_state != 'disabled') {
     echo "<span style='display: block; margin: 6px 0 7px 0;'><a href='".PROJECT_PATH."/app/xml_cdr/xml_cdr.php'>".($text['label-view_all'] ?? 'View All')."</a></span>\n";
     echo "</div>";
     
-    echo "<span class='hud_expander' onclick=\"$('#hud_unique_calls_details').slideToggle('fast'); toggle_grid_row_end('".$dashboard_name."')\"><span class='fas fa-ellipsis-h'></span></span>";
+    //echo "<span class='hud_expander' onclick=\"$('#hud_unique_calls_details').slideToggle('fast'); toggle_grid_row_end('".$dashboard_name."')\"><span class='fas fa-ellipsis-h'></span></span>";
 }
 echo "</div>\n";
 ?>

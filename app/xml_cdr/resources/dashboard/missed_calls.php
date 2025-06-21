@@ -50,7 +50,7 @@
 	$sql .=	"		direction = 'inbound' \n";
 	$sql .=	"		or direction = 'local' \n";
 	$sql .=	"	) \n";
-	$sql .=	"	and (status = 'missed') ";
+	$sql .= "   and status IN ('missed','no_answer','voicemail') ";
 	$sql .=	"	and hangup_cause <> 'LOSE_RACE' ";
 	if (!permission_exists('xml_cdr_domain')) {
 		if (!empty($assigned_extensions)) {
@@ -217,7 +217,7 @@
 		echo "</div>";
 		//$n++;
 
-		echo "<span class='hud_expander' onclick=\"$('#hud_missed_calls_details').slideToggle('fast'); toggle_grid_row_end('".$dashboard_name."')\"><span class='fas fa-ellipsis-h'></span></span>";
+		//echo "<span class='hud_expander' onclick=\"$('#hud_missed_calls_details').slideToggle('fast'); toggle_grid_row_end('".$dashboard_name."')\"><span class='fas fa-ellipsis-h'></span></span>";
 	}
 	echo "</div>\n";
 

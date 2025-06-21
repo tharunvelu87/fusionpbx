@@ -543,7 +543,7 @@
 						}
 						if (isset($xml->variables->hangup_cause) && $xml->variables->hangup_cause == 'NO_ANSWER' && isset($xml->variables->originating_leg_uuid)) {
 							//ring group or multi destination bridge statement
-							$missed_call = 'false';
+							$missed_call = 'true';
 						}
 						if (isset($xml->variables->billsec) && $xml->variables->billsec > 0) {
 							//answered call
@@ -623,7 +623,7 @@
 							$status = 'answered';
 						}
 						if ($xml->variables->hangup_cause == 'NO_ANSWER') {
-							$status = 'no_answer';
+							$status = 'missed';
 						}
 						if ($xml->variables->hangup_cause == 'ORIGINATOR_CANCEL') {
 							$status = 'cancelled';
@@ -638,12 +638,17 @@
 							$status = 'failed';
 						}
 						if ($xml->variables->cc_side == 'agent' && $xml->variables->billsec == 0) {
-							$status = 'no_answer';
+							$status = 'missed';
 						}
 						if (!isset($status) && $xml->variables->billsec == 0) {
-							$status = 'no_answer';
+							$status = 'missed';
 						}
 						if ($missed_call == 'true') {
+							$status = 'missed';
+						}
+						if ($xml->variables->billsec > 0 
+							&& empty($xml->variables->bridge_uuid)
+						) {
 							$status = 'missed';
 						}
 						if (substr($destination_number, 0, 3) == '*99') {
