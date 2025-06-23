@@ -310,7 +310,7 @@
 				echo "<input type='hidden' name='".$token['name']."' value='".$token['hash']."'>\n";
 				echo "</form>\n";
 
-				echo "<span class='hud_expander' onclick=\"$('#hud_caller_id_details').slideToggle('fast');\"><span class='fas fa-ellipsis-h'></span></span>";
+			
 			}
 			echo "</div>\n";
 

@@ -12,6 +12,7 @@ if (! permission_exists('extension_caller_id')) {
     echo 'access denied';
     exit;
 }
+
 // start session if not active
 if (session_status() !== PHP_SESSION_ACTIVE) {
     session_start();
@@ -134,19 +135,23 @@ if (isset($_GET['ajax'])) {
 $toggle = ($dashboard_details_state === 'disabled')
     ? ''
     : "onclick=\"$('#caller_id_details').slideToggle('fast');toggle_grid_row_end('{$dashboard_name}');\"";
+
+// dynamically set initial details visibility
+$details_style = ($dashboard_details_state === 'enabled')
+    ? 'display:block; padding:10px;'
+    : 'display:none;  padding:10px;';
 ?>
 <div class="hud_box" id="caller_id_widget">
 
   <!-- Collapsed HUD -->
   <div class="hud_content" <?php echo $toggle; ?>>
-    <!-- new badge-style icon -->
     <span class="hud_stat"><i class="fas fa-id-badge"></i></span>
     <span class="hud_badge"><?php echo htmlspecialchars($current_number); ?></span>
     <span class="hud_title"><?php echo htmlspecialchars($current_name); ?></span>
   </div>
 
   <!-- Expanded Details -->
-  <div class="hud_details hud_box" id="caller_id_details" style="display:none; padding:10px;">
+  <div class="hud_details hud_box" id="caller_id_details" style="<?php echo $details_style; ?>">
     <form id="caller_form" onsubmit="return false;">
       <label>
         <input type="checkbox" id="use_caller_id_name"
@@ -217,15 +222,13 @@ $toggle = ($dashboard_details_state === 'disabled')
   #caller_id_widget .hud_title {
     font-size: 0.75rem;
     color: #333;
-
   }
   #caller_id_widget .hud_details h4 {
-  font-size: 0.75rem;      /* smaller than the default */
-  margin-bottom: 0.25rem;  /* tighten spacing */
-  font-weight: normal;     /* optional: make it lighter */
-  color: #666;             /* optional: de-emphasize */
-}
-
+    font-size: 0.75rem;      /* smaller than the default */
+    margin-bottom: 0.25rem;  /* tighten spacing */
+    font-weight: normal;     /* optional: make it lighter */
+    color: #666;             /* optional: de-emphasize */
+  }
   #caller_id_widget .caller-id-item {
     padding: 5px;
     margin: 2px 0;
@@ -270,7 +273,6 @@ jQuery(function($){
       caller_id_name: $('#caller_id_name').val()
     }, r => {
       if (r.selected) {
-        // scope removals/additions only to our widget
         $('#caller_id_widget .caller-id-item').removeClass('selected');
         el.addClass('selected');
         $('#caller_id_widget .hud_badge').text(r.selected);
