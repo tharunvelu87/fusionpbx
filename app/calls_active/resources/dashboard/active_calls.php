@@ -225,7 +225,7 @@ jQuery(function($){
     });
   }
   refreshActiveCalls();
-  setInterval(refreshActiveCalls,1000);
+  setInterval(refreshActiveCalls,5000);
   $('#active_calls_widget').on('click','.hud_content',refreshActiveCalls);
 });
 </script>

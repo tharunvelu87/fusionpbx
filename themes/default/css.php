@@ -557,7 +557,7 @@ else { //default: white
 		right: 0;
 		top: 0;
 		bottom: 0;
-		z-index: -5;
+		z-index: -2;
 		}
 
 	#background-color {
