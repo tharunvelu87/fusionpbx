@@ -49,7 +49,7 @@
 			$start_stamp_begin = $_REQUEST['start_stamp_begin'] ?? '';
 			$start_stamp_end = $_REQUEST['start_stamp_end'] ?? '';
 		}
-		//$include_internal = $_REQUEST['include_internal'];
+		$include_internal = $_REQUEST['include_internal'];
 	}
 	else {
 		$quick_select = 3; //set default
@@ -65,9 +65,8 @@
 		$destination->start_stamp_begin = $start_stamp_begin ?? '';
 		$destination->start_stamp_end = $start_stamp_end ?? '';
 	}
-	//$destination->include_internal = $include_internal ?? null;
+	$destination->include_internal = $include_internal ?? null;
 	$summary = $destination->destination_summary();
-
 //set the http header
 	if (!empty($_REQUEST['type']) && $_REQUEST['type'] == "csv") {
 
@@ -160,17 +159,17 @@
 		echo "		</div>\n";
 		echo "	</div>\n";
 
-		//echo "	<div class='form_set'>\n";
-		//echo "		<div class='label'>\n";
-		//echo "			".$text['label-include_internal']."\n";
-		//echo "		</div>\n";
-		//echo "		<div class='field'>\n";
-		//echo "			<select class='formfld' name='include_internal' id='include_internal'>\n";
-		//echo "				<option value='0'>".$text['option-false']."</option>\n";
-		//echo "				<option value='1' ".((!empty($include_internal) && $include_internal == 1) ? "selected" : null).">".$text['option-true']."</option>\n";
-		//echo "			</select>\n";
-		//echo "		</div>\n";
-		//echo "	</div>\n";
+		echo "	<div class='form_set'>\n";
+		echo "		<div class='label'>\n";
+		echo "			".$text['label-include_internal']."\n";
+		echo "		</div>\n";
+		echo "		<div class='field'>\n";
+		echo "			<select class='formfld' name='include_internal' id='include_internal'>\n";
+		echo "				<option value='0'>".$text['option-false']."</option>\n";
+		echo "				<option value='1' ".((!empty($include_internal) && $include_internal == 1) ? "selected" : null).">".$text['option-true']."</option>\n";
+		echo "			</select>\n";
+		echo "		</div>\n";
+		echo "	</div>\n";
 
 		echo "	<div class='form_set'>\n";
 		echo "		<div class='label'>\n";
@@ -231,7 +230,7 @@
 			echo "	<td class='center'>".escape($row['answered_calls'])."&nbsp;</td>\n";
 			echo "	<td class='center'>".escape($row['unique_callers'])."&nbsp;</td>\n";
 			echo "	<td class='center'>".escape($row['total_calls'])."&nbsp;</td>\n";
-			//echo "	<td class='center'>".(($row['outbound_calls'] != '') ? escape($row['outbound_calls']) : "0")."&nbsp;</td>\n";
+			echo "	<td class='center'>".(($row['outbound_calls'] != '') ? escape($row['outbound_calls']) : "0")."&nbsp;</td>\n";
 			echo "	<td class='center'>".(($row['total_seconds'] != '') ? format_hours($row['total_seconds']) : '0:00:00')."</td>\n";
 			echo "	<td class='description overflow hide-sm-dn'>".escape($row['destination_description'])."&nbsp;</td>\n";
 			echo "</tr>\n";
