@@ -74,13 +74,22 @@ if ($contactName == "" || is_null($contactName)) {
 unset($sql, $parameters);
 ?>
 <!-- Display the Browser Phone interface using an iframe -->
-<div style="height: 77vh;">
+<div style="height: 80vh;">
     <iframe src="https://<?php echo $_SESSION['domain_name']; ?>/Browser-Phone/Phone/index.php?server=<?php echo $_SESSION['domain_name']; ?>&extension=<?php echo $extension; ?>&password=<?php echo $password; ?>&fullname=<?php echo urlencode($contactName); ?>" 
             width="100%" 
             height="100%" 
             frameborder="0"></iframe>
 </div>
 
+<script type="text/javascript">
+  // Warn the user before they navigate away or close the tab
+  window.addEventListener('beforeunload', function (e) {
+    // Most browsers will ignore custom text nowadays, but returnValue still needs to be set.
+    var confirmationMessage = 'Warning: Leaving this page will terminate your phone session.';
+    (e || window.event).returnValue = confirmationMessage;
+    return confirmationMessage;
+  });
+</script>
 <?php
 // Include FusionPBX footer.
 require_once "resources/footer.php";
