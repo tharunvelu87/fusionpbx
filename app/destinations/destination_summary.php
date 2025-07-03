@@ -214,7 +214,6 @@
 	echo "		<th class='center'>".$text['label-unique_callers']."</th>\n";
 	echo "		<th class='center'>".$text['label-total_calls']."</th>\n";
 	echo "		<th class='center'>".$text['label-duration']."</th>\n";
-	echo "		<th class='hide-sm-dn'>".$text['label-description']."</th>\n";
 	echo "	</tr>\n";
 
 	if (!empty($summary) && is_array($summary)) {
@@ -230,9 +229,7 @@
 			echo "	<td class='center'>".escape($row['answered_calls'])."&nbsp;</td>\n";
 			echo "	<td class='center'>".escape($row['unique_callers'])."&nbsp;</td>\n";
 			echo "	<td class='center'>".escape($row['total_calls'])."&nbsp;</td>\n";
-			echo "	<td class='center'>".(($row['outbound_calls'] != '') ? escape($row['outbound_calls']) : "0")."&nbsp;</td>\n";
 			echo "	<td class='center'>".(($row['total_seconds'] != '') ? format_hours($row['total_seconds']) : '0:00:00')."</td>\n";
-			echo "	<td class='description overflow hide-sm-dn'>".escape($row['destination_description'])."&nbsp;</td>\n";
 			echo "</tr>\n";
 		}
 	}
