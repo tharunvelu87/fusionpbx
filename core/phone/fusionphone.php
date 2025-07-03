@@ -5,6 +5,8 @@
  * This file is a combined version that loads FusionPBX’s header and footer.
  * It auto-loads the current user’s phone credentials (extension, password,
  * full name) from the database and embeds the Browser-Phone interface in an iframe.
+ * Keeps the session alive, disables navigation without confirmation,
+ * and handles standby/wake events to re-activate the page.
  */
 
 require_once "root.php";
@@ -27,8 +29,6 @@ if (!(permission_exists('voicemail_greeting_view') || permission_exists('xml_cdr
 // Add multi-lingual support.
 $language = new text;
 $text = $language->get();
-
-// (Optional) Remove or adapt domain change handling if not needed in standalone mode.
 
 // Set the page title and load FusionPBX header.
 $document['title'] = "Phone";
@@ -73,23 +73,71 @@ if ($contactName == "" || is_null($contactName)) {
 }
 unset($sql, $parameters);
 ?>
+
 <!-- Display the Browser Phone interface using an iframe -->
 <div style="height: 80vh;">
-    <iframe src="https://<?php echo $_SESSION['domain_name']; ?>/Browser-Phone/Phone/index.php?server=<?php echo $_SESSION['domain_name']; ?>&extension=<?php echo $extension; ?>&password=<?php echo $password; ?>&fullname=<?php echo urlencode($contactName); ?>" 
-            width="100%" 
-            height="100%" 
+    <iframe id="browserPhoneIframe"
+            src="https://<?php echo $_SESSION['domain_name']; ?>/Browser-Phone/Phone/index.php?server=<?php echo $_SESSION['domain_name']; ?>&extension=<?php echo $extension; ?>&password=<?php echo $password; ?>&fullname=<?php echo urlencode($contactName); ?>"
+            width="100%"
+            height="100%"
             frameborder="0"></iframe>
 </div>
 
 <script type="text/javascript">
-  // Warn the user before they navigate away or close the tab
-  window.addEventListener('beforeunload', function (e) {
-    // Most browsers will ignore custom text nowadays, but returnValue still needs to be set.
+  // Custom beforeunload handler
+  function beforeUnloadHandler(e) {
     var confirmationMessage = 'Warning: Leaving this page will terminate your phone session.';
-    (e || window.event).returnValue = confirmationMessage;
+    e.returnValue = confirmationMessage;
     return confirmationMessage;
+  }
+  window.addEventListener('beforeunload', beforeUnloadHandler);
+
+  // Disable back/forward navigation
+  history.pushState(null, null, location.href);
+  window.addEventListener('popstate', function(e) {
+    history.pushState(null, null, location.href);
+    showLeaveConfirmation(e);
+  });
+
+  // Intercept all link clicks
+  document.addEventListener('click', function(e) {
+    var target = e.target;
+    while (target && target.tagName !== 'A') {
+      target = target.parentElement;
+    }
+    if (target && target.tagName === 'A') {
+      e.preventDefault();
+      showLeaveConfirmation(e, target.href);
+    }
+  });
+
+  // Show confirmation dialog when attempting to leave
+  function showLeaveConfirmation(e, href) {
+    var msg = 'Warning: Leaving this page will terminate your phone session. Continue?';
+    if (confirm(msg)) {
+      window.removeEventListener('beforeunload', beforeUnloadHandler);
+      if (href) {
+        window.location.href = href;
+      }
+    }
+  }
+
+  // Keep session alive by pinging the server every 5 minutes
+  setInterval(function() {
+    fetch(window.location.href, { method: 'HEAD', credentials: 'same-origin' });
+  }, 300000);
+
+  // Handle page visibility change (standby/idle wake)
+  document.addEventListener('visibilitychange', function() {
+    if (document.visibilityState === 'visible') {
+      alert('Your phone session is active again.');
+      // Refocus on iframe
+      var iframe = document.getElementById('browserPhoneIframe');
+      if (iframe) iframe.contentWindow.focus();
+    }
   });
 </script>
+
 <?php
 // Include FusionPBX footer.
 require_once "resources/footer.php";
