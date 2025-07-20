@@ -54,6 +54,7 @@ class active_calls_service extends service implements websocket_service_interfac
 		'unique_id',
 		// Domain
 		'caller_context',
+		'channel_presence_id',
 		// Ringing, Hangup, Answered
 		'answer_state',
 		'channel_call_state',
@@ -103,6 +104,8 @@ class active_calls_service extends service implements websocket_service_interfac
 		'application'               => 'call_active_application',
 		'playback_file_path'        => 'call_active_application',
 		'variable_current_application'=> 'call_active_application',
+		'channel_presence_id'		=> 'call_active_view',
+		'caller_context'			=> 'call_active_domain',
 	];
 
 	/**
@@ -186,11 +189,21 @@ class active_calls_service extends service implements websocket_service_interfac
 		}
 
 		// Filter on single domain name
+		if ($subscriber->has_permission('call_active_domain')) {
+			return filter_chain::and_link([
+				new event_filter(self::SWITCH_EVENTS),
+				new permission_filter(self::PERMISSION_MAP, $subscriber->get_permissions()),
+				new event_key_filter(self::EVENT_KEYS),
+				new caller_context_filter([$subscriber->get_domain_name()]),
+			]);
+		}
+
+		// Filter on extensions
 		return filter_chain::and_link([
 			new event_filter(self::SWITCH_EVENTS),
 			new permission_filter(self::PERMISSION_MAP, $subscriber->get_permissions()),
 			new event_key_filter(self::EVENT_KEYS),
-			new caller_context_filter([$subscriber->get_domain_name()]),
+			new extension_filter($subscriber->get_user_setting('extension', [])),
 		]);
 	}
 
@@ -543,15 +556,15 @@ class active_calls_service extends service implements websocket_service_interfac
 		$response['topic'] = $websocket_message->topic;
 		$response['request_id'] = $websocket_message->request_id;
 
-		// Get the payload
+		// Get the payload and domain from message
 		$payload = $websocket_message->payload();
+		$domain_name = $websocket_message->domain_name() ?? '';
 
 		// Get the eavesdrop information from the payload to send to the switch
 		$uuid = $payload['unique_id'] ?? '';
 		$origination_caller_id_name = $payload['origination_caller_id_name'] ?? '';
 		$caller_caller_id_number = $payload['caller_caller_id_number'] ?? '';
 		$origination_caller_contact = $payload['origination_caller_contact'] ?? '';
-		$domain_name = $payload['domain_name'] ?? '';
 
 		$response['status_message'] = 'success';
 		$response['status_code'] = 200;
@@ -802,7 +815,7 @@ class active_calls_service extends service implements websocket_service_interfac
 			return;
 		}
 
-		$this->debug("Received message on websocket: $json_string (" . strlen($json_string) . " bytes)");
+		$this->debug("Received message on websocket: (" . strlen($json_string) . " bytes)");
 
 		// Get the web socket message as an object
 		$message = websocket_message::create_from_json_message($json_string);

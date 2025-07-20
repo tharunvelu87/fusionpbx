@@ -27,12 +27,29 @@
  */
 
 /**
- * Description of invalid_uuid
+ * Description of extension_filter
  *
  * @author Tim Fry <tim@fusionpbx.com>
  */
-class invalid_uuid_exception extends Exception {
-	public function __construct(string $message = "UUID is not valid", int $code = 0, ?\Throwable $previous = null) {
-		return parent::__construct($message, $code, $previous);
+class extension_filter {
+
+	private $extensions;
+
+	public function __construct(array $extensions = []) {
+		//organize the extensions in a way we can use isset for fast lookup
+		foreach ($extensions as $extension) {
+			$presence_id = $extension['user'] . '@' . $extension['user_context'];
+			$this->extensions[$presence_id] = true;
+		}
+	}
+
+	public function __invoke(string $key, $value): ?bool {
+		//only match on channel_presence_id key
+		if ($key === 'channel_presence_id' && !isset($this->extensions[$value])) {
+			// Drop the message
+			return null;
+		}
+		//no key to match on
+		return true;
 	}
 }
