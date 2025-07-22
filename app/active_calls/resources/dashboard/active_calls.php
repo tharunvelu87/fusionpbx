@@ -86,6 +86,7 @@ if ($dashboard_details_state != 'disabled') {
 			echo "<tr>\n";
 				echo "<th class='hud_heading' width='50%'>".$text['label-cid-number']."</th>\n";
 				echo "<th class='hud_heading' width='50%'>".$text['label-destination']."</th>\n";
+				echo "    <th class='hud_heading' width='25%'>".$text['label-duration']."</th>\n";
 				echo "<th class='hud_heading' width='50%'>".$text['label-status']."</th>\n";
 			echo "</tr>\n";
 		echo "</thead>\n";
@@ -103,6 +104,29 @@ echo "<script src='/app/active_calls/resources/javascript/arrows.js?v=$version'>
 <script>
 	const timers = [];
 	const callsMap = new Map();
+
+	function start_duration_timer(uuid, startTime) {
+	const td = document.getElementById(`duration_${uuid}`);
+	if (!td) return;
+
+	function render() {
+		const start = new Date(startTime / 1000);
+		const now = new Date();
+		const diff = Math.floor((now - start) / 1000);
+		const hh = Math.floor(diff / 3600).toString().padStart(2,'0');
+		const mm = Math.floor((diff % 3600) / 60).toString().padStart(2,'0');
+		const ss = (diff % 60).toString().padStart(2,'0');
+		td.textContent = `${hh}:${mm}:${ss}`;
+	}
+
+	render();
+	timers[uuid] = setInterval(render, 1000);
+	}
+
+	function stop_duration_timer(uuid) {
+	clearInterval(timers[uuid]);
+	delete timers[uuid];
+	}
 
 	var showAll = false;
 	const websockets_domain_name = '<?= $_SESSION['domain_name'] ?>';
@@ -377,15 +401,18 @@ if (!empty($_SESSION['user']['extension'])) {
 
 			// start string block
 			row.innerHTML = `<?php
-echo '<td id="caller_id_number_${uuid}">${call.caller_caller_id_number}</td>' . PHP_EOL;
-echo '<td id="destination_${uuid}">${call.caller_destination_number}</td>' . PHP_EOL;
-echo '<td id="answer_state_${uuid}">${call.answer_state}</td>' . PHP_EOL;
-?>`;
-//end string block
+			echo '<td id="caller_id_number_${uuid}">${call.caller_caller_id_number}</td>' . PHP_EOL;
+			echo '<td id="destination_${uuid}">${call.caller_destination_number}</td>' . PHP_EOL;
+			echo '<td id="duration_${uuid}"></td>' . PHP_EOL;
+			echo '<td id="answer_state_${uuid}">${call.answer_state}</td>' . PHP_EOL;
+			
+			?>`;
+			//end string block
 			row.style.display = 'table-row';
 
 			// add the row to the table
 			tbody.appendChild(row);
+			start_duration_timer(call.unique_id, call.caller_channel_created_time);
 
 			console.log('NEW ROW ADDED', row.id);
 
@@ -457,7 +484,7 @@ echo '<td id="answer_state_${uuid}">${call.answer_state}</td>' . PHP_EOL;
 					visibleCount++;
 				}
 			});
-
+		stop_duration_timer(call.unique_id);
 			const totalCount = callsMap.size;
 			calls_active_count.textContent = `${visibleCount}`;
 			row.remove();

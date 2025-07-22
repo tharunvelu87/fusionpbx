@@ -749,7 +749,7 @@ echo "<script src='resources/javascript/arrows.js?v=$version'></script>\n";
 				echo '<td id="profile_${uuid}" class="hide-small">${profile}</td>'.PHP_EOL;
 			}
 			echo '<td id="duration_${uuid}"></td>'.PHP_EOL;
-			if (permission_exists('call_active_all')) {
+			if (permission_exists('call_active_view')) {
 				echo '<td id="caller_context_${uuid}" style="display: none;">${call.caller_context}</td>'.PHP_EOL;
 			}
 			echo '<td id="caller_id_name_${uuid}" class="hide-small">${call.caller_caller_id_name}</td>'.PHP_EOL;
