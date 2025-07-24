@@ -969,18 +969,38 @@
 					if ($permission['xml_cdr_caller_id_name']) {
 						$content .= "	<td class='middle overflow hide-md-dn' title=\"".escape($row['caller_id_name'])."\">".escape($row['caller_id_name'])."</td>\n";
 					}
-				//source
+				// source (force the original incoming number)
 					if ($permission['xml_cdr_caller_id_number']) {
-						$content .= "	<td class='middle no-link no-wrap'>";
-						$content .= "		<a href=\"javascript:void(0)\" onclick=\"send_cmd('".PROJECT_PATH."/app/click_to_call/click_to_call.php?src_cid_name=".urlencode(escape($row['caller_id_name']))."&src_cid_number=".urlencode(escape($row['caller_id_number']))."&dest_cid_name=".urlencode($outbound_caller_id_name)."&dest_cid_number=".urlencode($outbound_caller_id_number)."&src=".urlencode($user_extension)."&dest=".urlencode(escape($row['caller_id_number']))."&rec=false&ringback=us-ring&auto_answer=true');\">\n";
-						if (is_numeric($row['caller_id_number'])) {
-							$content .= "		".escape(format_phone(substr($row['caller_id_number'], 0, 20))).' ';
+						// prefer the “real” inbound caller ID if available
+						$cid = !empty($row['source_number'])
+							? $row['source_number']
+							: $row['caller_id_number'];
+
+						$content .= "   <td class='middle no-link no-wrap'>";
+						$content .= "      <a href=\"javascript:void(0)\" onclick=\"send_cmd('"
+						.PROJECT_PATH."/app/click_to_call/click_to_call.php?src_cid_name="
+						.urlencode(escape($row['caller_id_name']))
+						."&src_cid_number="
+						.urlencode(escape($cid))
+						."&dest_cid_name="
+						.urlencode($outbound_caller_id_name)
+						."&dest_cid_number="
+						.urlencode($outbound_caller_id_number)
+						."&src="
+						.urlencode($user_extension)
+						."&dest="
+						.urlencode(escape($cid))
+						."&rec=false&ringback=us-ring&auto_answer=true');\">";
+
+						if (is_numeric($cid)) {
+							$content .= "      ".escape(format_phone(substr($cid, 0, 20))).' ';
 						}
 						else {
-							$content .= "		".escape(substr($row['caller_id_number'], 0, 20)).' ';
+							$content .= "      ".escape(substr($cid, 0, 20)).' ';
 						}
-						$content .= "		</a>";
-						$content .= "	</td>\n";
+
+						$content .= "      </a>";
+						$content .= "   </td>\n";
 					}
 				//caller destination
 					if ($permission['xml_cdr_caller_destination']) {
