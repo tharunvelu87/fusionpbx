@@ -64,85 +64,176 @@
 			header('Content-type: application/octet-binary');
 			header('Content-Disposition: attachment; filename='.$csv_filename);
 
-		//set the csv headers
-			$z = 0;
+		// ─── set the csv headers ───
+			$col = 0;
 			foreach ($result[0] as $key => $val) {
-				if ($key != "xml" && $key != "json") {
-					$echo = true;
-					switch ($key) {
-						case 'direction': if (!permission_exists('xml_cdr_direction')) { $echo = false; } break;
-						case 'extension': if (!permission_exists('xml_cdr_extension')) { $echo = false; } break;
-						case 'caller_id_name': if (!permission_exists('xml_cdr_caller_id_name')) { $echo = false; } break;
-						case 'caller_id_number': if (!permission_exists('xml_cdr_caller_id_number')) { $echo = false; } break;
-						case 'caller_destination': if (!permission_exists('xml_cdr_caller_destination')) { $echo = false; } break;
-						case 'destination_number': if (!permission_exists('xml_cdr_destination')) { $echo = false; } break;
-						case 'answer_stamp':
-						case 'start_stamp':
-						case 'end_stamp':
-						case 'start_date_formatted':
-						case 'start_time_formatted':
-						case 'start_epoch': if (!permission_exists('xml_cdr_start')) { $echo = false; } break;
-						case 'tta': if (!permission_exists('xml_cdr_tta')) { $echo = false; } break;
-						case 'duration':
-						case 'billsec':
-						case 'billmsec': if (!permission_exists('xml_cdr_duration')) { $echo = false; } break;
-						case 'pdd_ms': if (!permission_exists('xml_cdr_pdd')) { $echo = false; } break;
-						case 'rtp_audio_in_mos': if (!permission_exists('xml_cdr_mos')) { $echo = false; } break;
-						case 'hangup_cause': if (!permission_exists('xml_cdr_hangup_cause')) { $echo = false; } break;
-						case 'record_path':
-						case 'record_name': if (!permission_exists('xml_cdr_recording')) { $echo = false; } break;
-					}
-					if ($echo) {
-						echo ($z == 0 ? null : ',').'"'.$key.'"';
-					}
+				// never export these
+				if ($key === 'xml' || $key === 'json') {
+					continue;
 				}
-				$z++;
+				$echo = true;
+				switch ($key) {
+					// ─── skip entire columns ───
+					case 'xml_cdr_uuid':
+					case 'bridge_uuid':
+					case 'sip_call_id':
+					case 'missed_call':
+					case 'record_path':
+					case 'record_name':
+					case 'domain_uuid':
+					case 'leg':
+					case 'cc_side':
+					case 'hangup_cause': 
+					case 'extension_name': 
+					// ─── skip raw timestamps ───
+					case 'answer_stamp':
+					case 'start_stamp':
+					case 'end_stamp':
+					case 'start_epoch':
+					// ─── skip quality & codec ───
+					case 'read_codec':
+					case 'write_codec':
+					case 'rtp_audio_in_mos':
+					case 'pdd_ms':
+						$echo = false;
+						break;
+
+					// ─── explicitly allow these new ones ───
+					case 'source_number':
+					case 'status':
+						// no permission check, leave $echo=true
+						break;
+
+					// ─── your existing permission checks ───
+					case 'direction':
+						if (!permission_exists('xml_cdr_direction')) { $echo = false; }
+						break;
+					case 'extension':
+						if (!permission_exists('xml_cdr_extension')) { $echo = false; }
+						break;
+					case 'caller_id_name':
+						if (!permission_exists('xml_cdr_caller_id_name')) { $echo = false; }
+						break;
+					case 'caller_id_number':
+						if (!permission_exists('xml_cdr_caller_id_number')) { $echo = false; }
+						break;
+					case 'caller_destination':
+						if (!permission_exists('xml_cdr_caller_destination')) { $echo = false; }
+						break;
+					case 'destination_number':
+						if (!permission_exists('xml_cdr_destination')) { $echo = false; }
+						break;
+					case 'start_date_formatted':
+					case 'start_time_formatted':
+						if (!permission_exists('xml_cdr_start')) { $echo = false; }
+						break;
+					case 'duration':
+					case 'billsec':
+					case 'billmsec':
+						if (!permission_exists('xml_cdr_duration')) { $echo = false; }
+						break;
+					case 'tta':
+						if (!permission_exists('xml_cdr_tta')) { $echo = false; }
+						break;
+
+					default:
+						// drop everything else
+						$echo = false;
+				}
+
+				if ($echo) {
+					echo ($col > 0 ? ',' : '') . '"' . $key . '"';
+					$col++;
+				}
 			}
 			echo "\n";
 
-		//show the csv data
-			$x=0;
-			while (true) {
-				$z = 0;
-				foreach ($result[0] as $key => $val) {
-					if ($key != "xml" && $key != "json") {
-						$echo = true;
-						switch ($key) {
-							case 'direction': if (!permission_exists('xml_cdr_direction')) { $echo = false; } break;
-							case 'extension': if (!permission_exists('xml_cdr_extension')) { $echo = false; } break;
-							case 'caller_id_name': if (!permission_exists('xml_cdr_caller_id_name')) { $echo = false; } break;
-							case 'caller_id_number': if (!permission_exists('xml_cdr_caller_id_number')) { $echo = false; } break;
-							case 'caller_destination': if (!permission_exists('xml_cdr_caller_destination')) { $echo = false; } break;
-							case 'destination_number': if (!permission_exists('xml_cdr_destination')) { $echo = false; } break;
-							case 'answer_stamp':
-							case 'start_stamp':
-							case 'end_stamp':
-							case 'start_date_formatted':
-							case 'start_time_formatted':
-							case 'start_epoch': if (!permission_exists('xml_cdr_start')) { $echo = false; } break;
-							case 'tta': if (!permission_exists('xml_cdr_tta')) { $echo = false; } break;
-							case 'duration':
-							case 'billsec':
-							case 'billmsec': if (!permission_exists('xml_cdr_duration')) { $echo = false; } break;
-							case 'pdd_ms': if (!permission_exists('xml_cdr_pdd')) { $echo = false; } break;
-							case 'rtp_audio_in_mos': if (!permission_exists('xml_cdr_mos')) { $echo = false; } break;
-							case 'hangup_cause': if (!permission_exists('xml_cdr_hangup_cause')) { $echo = false; } break;
-							case 'record_path':
-							case 'record_name': if (!permission_exists('xml_cdr_recording')) { $echo = false; } break;
-						}
-						if ($echo) {
-							echo ($z == 0 ? null : ',').'"'.$result[$x][$key].'"';
-						}
+			// ─── show the csv data ───
+			$x = 0;
+			while ($x < $result_count) {
+				$col = 0;
+				foreach ($result[0] as $key => $_) {
+					if ($key === 'xml' || $key === 'json') {
+						continue;
 					}
-					$z++;
+					$echo = true;
+					switch ($key) {
+						// ─── skip identical unwanted keys ───
+						case 'xml_cdr_uuid':
+						case 'bridge_uuid':
+						case 'sip_call_id':
+						case 'missed_call':
+						case 'record_path':
+						case 'record_name':
+						case 'domain_uuid':
+						case 'leg':
+						case 'cc_side':
+						case 'hangup_cause':
+						case 'extension_name':
+						case 'answer_stamp':
+						case 'start_stamp':
+						case 'end_stamp':
+						case 'start_epoch':
+						case 'read_codec':
+						case 'write_codec':
+						case 'rtp_audio_in_mos':
+						case 'pdd_ms':
+							$echo = false;
+							break;
+
+						// ─── allow these new ones ───
+						case 'source_number':
+						case 'status':
+							// left as true
+							break;
+
+						// ─── same permission checks ───
+						case 'direction':
+							if (!permission_exists('xml_cdr_direction')) { $echo = false; }
+							break;
+						case 'extension':
+							if (!permission_exists('xml_cdr_extension')) { $echo = false; }
+							break;
+						case 'caller_id_name':
+							if (!permission_exists('xml_cdr_caller_id_name')) { $echo = false; }
+							break;
+						case 'caller_id_number':
+							if (!permission_exists('xml_cdr_caller_id_number')) { $echo = false; }
+							break;
+						case 'caller_destination':
+							if (!permission_exists('xml_cdr_caller_destination')) { $echo = false; }
+							break;
+						case 'destination_number':
+							if (!permission_exists('xml_cdr_destination')) { $echo = false; }
+							break;
+						case 'start_date_formatted':
+						case 'start_time_formatted':
+							if (!permission_exists('xml_cdr_start')) { $echo = false; }
+							break;
+						case 'duration':
+						case 'billsec':
+						case 'billmsec':
+							if (!permission_exists('xml_cdr_duration')) { $echo = false; }
+							break;
+						case 'tta':
+							if (!permission_exists('xml_cdr_tta')) { $echo = false; }
+							break;
+
+						default:
+							$echo = false;
+					}
+
+					if ($echo) {
+						echo ($col > 0 ? ',' : '') . '"' . $result[$x][$key] . '"';
+						$col++;
+					}
 				}
+
 				echo "\n";
-				++$x;
-				if ($x > ($result_count - 1)) {
-					break;
-				}
+				$x++;
 			}
-	}
+			}
+	
 
 //export as a PDF
 	if (permission_exists('xml_cdr_export_pdf') && $export_format == 'pdf') {
