@@ -50,7 +50,7 @@ $extensions = $database->select($sql, $params, 'all');
 
 // 4) If no extensions and not superadmin → deny
 if (empty($extensions) && !$is_superadmin) {
-    echo "access denied";
+    echo "Extensions-Empty";
     exit;
 }
 
