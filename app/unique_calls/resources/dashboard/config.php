@@ -23,14 +23,14 @@ $array['dashboard'][$x]['dashboard_label_background_color'] = '';
 $array['dashboard'][$x]['dashboard_label_background_color_hover'] = '';
 $array['dashboard'][$x]['dashboard_number_text_color'] = '#ffffff';
 $array['dashboard'][$x]['dashboard_number_text_color_hover'] = '';
-$array['dashboard'][$x]['dashboard_number_background_color'] = '#fffb06ff';
+$array['dashboard'][$x]['dashboard_number_background_color'] = '';
 $array['dashboard'][$x]['dashboard_background_color'] = '#ffffff';
 $array['dashboard'][$x]['dashboard_background_color_hover'] = '';
 $array['dashboard'][$x]['dashboard_detail_background_color'] = '#f9f9f9';
 $array['dashboard'][$x]['dashboard_column_span'] = '1';
 $array['dashboard'][$x]['dashboard_row_span'] = '1';
 $array['dashboard'][$x]['dashboard_details_state'] = 'hidden';
-$array['dashboard'][$x]['dashboard_order'] = '120';
+$array['dashboard'][$x]['dashboard_order'] = '39';
 $array['dashboard'][$x]['dashboard_enabled'] = 'true';
 $array['dashboard'][$x]['dashboard_description'] = 'Displays unique inbound calls based on longest call duration in last 24 hours.';
 
