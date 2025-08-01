@@ -2,7 +2,7 @@
 
 // Launch Phone Widget
 $x++;
-$array['dashboard'][$x]['dashboard_uuid'] = 'b79e2ef4-cc90-4890-83e7-eab88c5199d2'; // unique UUID
+$array['dashboard'][$x]['dashboard_uuid'] = '7fb50a22-d5af-4308-9ddd-da3860b0533b'; // unique UUID
 $array['dashboard'][$x]['dashboard_name'] = 'Launch Phone';
 $array['dashboard'][$x]['dashboard_path'] = 'launch_phone/launch_phone';
 $array['dashboard'][$x]['dashboard_icon'] = 'fa-phone-volume';
@@ -34,16 +34,16 @@ $array['dashboard'][$x]['dashboard_enabled'] = 'true';
 $array['dashboard'][$x]['dashboard_description'] = 'Widget to launch WebRTC or SIP phone dialer.';
 
 $y = 0;
-$array['dashboard'][$x]['dashboard_groups'][$y]['dashboard_group_uuid'] = '85573555-7e18-4449-aa59-a264a7addda9'; // superadmin
-$array['dashboard'][$x]['dashboard_groups'][$y]['dashboard_uuid'] = 'b79e2ef4-cc90-4890-83e7-eab88c5199d2';
+$array['dashboard'][$x]['dashboard_groups'][$y]['dashboard_group_uuid'] = 'c7e5e4a8-3958-460d-bcbf-6e0e193eab1d';
+$array['dashboard'][$x]['dashboard_groups'][$y]['dashboard_uuid'] = '7fb50a22-d5af-4308-9ddd-da3860b0533b';
 $array['dashboard'][$x]['dashboard_groups'][$y]['group_name'] = 'superadmin';
 $y++;
-$array['dashboard'][$x]['dashboard_groups'][$y]['dashboard_group_uuid'] = 'cde35063-58ca-4cdd-94fa-a1c4ee03e66c'; // admin
-$array['dashboard'][$x]['dashboard_groups'][$y]['dashboard_uuid'] = 'b79e2ef4-cc90-4890-83e7-eab88c5199d2';
+$array['dashboard'][$x]['dashboard_groups'][$y]['dashboard_group_uuid'] = '9faddc67-3bcb-4c4c-b6c3-5b2f21042d7a'; // admin
+$array['dashboard'][$x]['dashboard_groups'][$y]['dashboard_uuid'] = '7fb50a22-d5af-4308-9ddd-da3860b0533b';
 $array['dashboard'][$x]['dashboard_groups'][$y]['group_name'] = 'admin';
 $y++;
-$array['dashboard'][$x]['dashboard_groups'][$y]['dashboard_group_uuid'] = 'b6e6c697-5351-484c-808d-884589c6d527'; // user
-$array['dashboard'][$x]['dashboard_groups'][$y]['dashboard_uuid'] = 'b79e2ef4-cc90-4890-83e7-eab88c5199d2';
+$array['dashboard'][$x]['dashboard_groups'][$y]['dashboard_group_uuid'] = 'c9eba2eb-7a24-4b0d-bb6b-f0207cc1c8a3'; // user
+$array['dashboard'][$x]['dashboard_groups'][$y]['dashboard_uuid'] = '7fb50a22-d5af-4308-9ddd-da3860b0533b';
 $array['dashboard'][$x]['dashboard_groups'][$y]['group_name'] = 'user';
 
 ?>
