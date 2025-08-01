@@ -1,25 +1,9 @@
 <?php
 
-// =========================
-// 1. Declare the App
-// =========================
 
-$z = 0;
-$apps[$z]['name'] = 'Unique Calls';
-$apps[$z]['uuid'] = '6b6adaba-f059-445c-95e4-ecf2761305fc'; // unique app UUID
-$apps[$z]['category'] = 'Dashboard';
-$apps[$z]['subcategory'] = '';
-$apps[$z]['version'] = '1.0';
-$apps[$z]['license'] = 'MPL 1.1';
-$apps[$z]['url'] = '';
-$apps[$z]['description']['en-us'] = 'Widget showing unique inbound calls with longest duration.';
+$x++; // claim a new slot
 
-// =========================
-// 2. Dashboard Widget Definition
-// =========================
-
-$x = 0;
-$array['dashboard'][$x]['dashboard_uuid'] = '9f761f84-92b6-44cf-9c93-34a0f18480db';
+$array['dashboard'][$x]['dashboard_uuid'] = '4fff2354-bbce-499d-a25f-b203cfc40045';
 $array['dashboard'][$x]['dashboard_name'] = 'Unique Calls';
 $array['dashboard'][$x]['dashboard_path'] = 'unique_calls/unique_calls';
 $array['dashboard'][$x]['dashboard_icon'] = 'fa-solid fa-user-check';
@@ -50,23 +34,19 @@ $array['dashboard'][$x]['dashboard_order'] = '120';
 $array['dashboard'][$x]['dashboard_enabled'] = 'true';
 $array['dashboard'][$x]['dashboard_description'] = 'Displays unique inbound calls based on longest call duration in last 24 hours.';
 
-// =========================
-// 3. Permissions
-// =========================
-
 $y = 0;
-$array['dashboard'][$x]['dashboard_groups'][$y]['dashboard_group_uuid'] = '931f7a2f-43fb-4d3d-8e39-e546a82206fa';
-$array['dashboard'][$x]['dashboard_groups'][$y]['dashboard_uuid'] = '9f761f84-92b6-44cf-9c93-34a0f18480db';
+$array['dashboard'][$x]['dashboard_groups'][$y]['dashboard_group_uuid'] = 'f2c34a0c-2dd6-4e0d-b5e7-dd6fce0a00aa';
+$array['dashboard'][$x]['dashboard_groups'][$y]['dashboard_uuid'] = '4fff2354-bbce-499d-a25f-b203cfc40045';
 $array['dashboard'][$x]['dashboard_groups'][$y]['group_name'] = 'superadmin';
 $y++;
 
-$array['dashboard'][$x]['dashboard_groups'][$y]['dashboard_group_uuid'] = '47f4f687-d346-4614-b61f-fcf730f56d53';
-$array['dashboard'][$x]['dashboard_groups'][$y]['dashboard_uuid'] = '9f761f84-92b6-44cf-9c93-34a0f18480db';
+$array['dashboard'][$x]['dashboard_groups'][$y]['dashboard_group_uuid'] = '6014fca6-351d-4149-85bd-10cded190891';
+$array['dashboard'][$x]['dashboard_groups'][$y]['dashboard_uuid'] = '4fff2354-bbce-499d-a25f-b203cfc40045';
 $array['dashboard'][$x]['dashboard_groups'][$y]['group_name'] = 'admin';
 $y++;
 
-$array['dashboard'][$x]['dashboard_groups'][$y]['dashboard_group_uuid'] = 'ab2dd268-057d-419d-bf5a-1d3730d60daa';
-$array['dashboard'][$x]['dashboard_groups'][$y]['dashboard_uuid'] = '9f761f84-92b6-44cf-9c93-34a0f18480db';
+$array['dashboard'][$x]['dashboard_groups'][$y]['dashboard_group_uuid'] = '0e1fa1c2-8f31-4546-b3c5-375869c8f873';
+$array['dashboard'][$x]['dashboard_groups'][$y]['dashboard_uuid'] = '4fff2354-bbce-499d-a25f-b203cfc40045';
 $array['dashboard'][$x]['dashboard_groups'][$y]['group_name'] = 'user';
 
 ?>
