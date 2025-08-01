@@ -1,11 +1,11 @@
 <?php
 
 $x = 0;
-$array['dashboard'][$x]['dashboard_uuid'] = '742802f3-5a95-4990-9674-ce0412d3b181'; // ← generate your own UUID
+$array['dashboard'][$x]['dashboard_uuid'] = 'e7d5c9f0-3c2a-4d1f-b4ea-6bfb12345678'; // ← generate your own UUID
 $array['dashboard'][$x]['dashboard_name'] = 'Live Calls';
 $array['dashboard'][$x]['dashboard_path'] = 'calls_active/active_calls';
 $array['dashboard'][$x]['dashboard_icon'] = 'fa-phone';
-$array['dashboard'][$x]['dashboard_icon_color'] = '#028237ff';
+$array['dashboard'][$x]['dashboard_icon_color'] = '#00c853';
 $array['dashboard'][$x]['dashboard_url'] = '/app/calls_active/resources/dashboard/active_calls.php';
 $array['dashboard'][$x]['dashboard_target'] = 'self';
 $array['dashboard'][$x]['dashboard_width'] = '';
@@ -34,15 +34,15 @@ $array['dashboard'][$x]['dashboard_description'] = 'Displays real-time active ca
 
 $y = 0;
 $array['dashboard'][$x]['dashboard_groups'][$y]['dashboard_group_uuid'] = '931f7a2f-43fb-4d3d-8e39-e546a82206fa';
-$array['dashboard'][$x]['dashboard_groups'][$y]['dashboard_uuid'] = 'e742802f3-5a95-4990-9674-ce0412d3b181';
+$array['dashboard'][$x]['dashboard_groups'][$y]['dashboard_uuid'] = 'e7d5c9f0-3c2a-4d1f-b4ea-6bfb12345678';
 $array['dashboard'][$x]['dashboard_groups'][$y]['group_name'] = 'superadmin';
 $y++;
 $array['dashboard'][$x]['dashboard_groups'][$y]['dashboard_group_uuid'] = '47f4f687-d346-4614-b61f-fcf730f56d53';
-$array['dashboard'][$x]['dashboard_groups'][$y]['dashboard_uuid'] = '742802f3-5a95-4990-9674-ce0412d3b181';
+$array['dashboard'][$x]['dashboard_groups'][$y]['dashboard_uuid'] = 'e7d5c9f0-3c2a-4d1f-b4ea-6bfb12345678';
 $array['dashboard'][$x]['dashboard_groups'][$y]['group_name'] = 'admin';
 $y++;
 $array['dashboard'][$x]['dashboard_groups'][$y]['dashboard_group_uuid'] = 'ab2dd268-057d-419d-bf5a-1d3730d60daa';
-$array['dashboard'][$x]['dashboard_groups'][$y]['dashboard_uuid'] = '742802f3-5a95-4990-9674-ce0412d3b181';
+$array['dashboard'][$x]['dashboard_groups'][$y]['dashboard_uuid'] = 'e7d5c9f0-3c2a-4d1f-b4ea-6bfb12345678';
 $array['dashboard'][$x]['dashboard_groups'][$y]['group_name'] = 'user';
 $x++;
 
