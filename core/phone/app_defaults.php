@@ -23,7 +23,7 @@
 	Contributor(s):
 	Mark J Crane <markjcrane@fusionpbx.com>
 */
-
+/*
 //process this only one time
 	if ($domains_processed == 1) {
 
@@ -35,5 +35,5 @@
 			unset($sql);
 
 	}
- 
+ */
 ?>
