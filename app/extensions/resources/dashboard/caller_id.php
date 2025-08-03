@@ -310,7 +310,6 @@
 				echo "<input type='hidden' name='".$token['name']."' value='".$token['hash']."'>\n";
 				echo "</form>\n";
 
-			
 			}
 			echo "</div>\n";
 
