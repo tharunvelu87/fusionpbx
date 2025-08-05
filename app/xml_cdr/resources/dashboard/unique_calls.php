@@ -5,9 +5,6 @@
 // restricted to a 6:30 pm→6:30 pm window.
 // Version: MPL 1.1
 
-// ----------------------------------------------------------
-// 1. Includes and Permissions
-// ----------------------------------------------------------
 require_once dirname(__DIR__, 4) . "/resources/require.php";
 require_once "resources/check_auth.php";
 
@@ -16,46 +13,28 @@ if (!permission_exists('xml_cdr_view')) {
     exit;
 }
 
-// ----------------------------------------------------------
-// 2. Multi-Lingual Support
-// ----------------------------------------------------------
 $language = new text;
 $text = $language->get($_SESSION['domain']['language']['code'], 'core/user_settings');
 
-// ----------------------------------------------------------
-// 3. Dashboard Parameters and Time Format
-// ----------------------------------------------------------
-$unique_limit = (isset($selected_blocks) && is_array($selected_blocks) && in_array('counts', $selected_blocks))
-    ? 500
-    : 500;
+$dashboard_name = 'unique_calls';
+$dashboard_details_state = $_SESSION['dashboard_details_state'] ?? 'default';
+$dashboard_icon = $dashboard_icon ?? 'fa-solid fa-sack-dollar';
+$dashboard_number_background_color = $dashboard_number_background_color ?? '#417ed3';
+$dashboard_number_text_color = $dashboard_number_text_color ?? '#ffffff';
 
-$sql_time_format = 'DD Mon HH12:MI am';
-if (!empty($_SESSION['domain']['time_format']['text'])) {
-    $sql_time_format = ($_SESSION['domain']['time_format']['text'] === '12h')
-        ? "DD Mon HH12:MI am"
-        : "DD Mon HH24:MI";
-}
+$sql_time_format = (!empty($_SESSION['domain']['time_format']['text']) && $_SESSION['domain']['time_format']['text'] === '12h') ? "DD Mon HH12:MI am" : "DD Mon HH24:MI";
 
-// ----------------------------------------------------------
-// 3a. Calculate 6:30 pm → next day 6:30 pm window (in domain TZ)
-// ----------------------------------------------------------
-$tz_name = !empty($_SESSION['domain']['time_zone']['name'])
-    ? $_SESSION['domain']['time_zone']['name']
-    : date_default_timezone_get();
-
-$tz   = new DateTimeZone($tz_name);
-$now  = new DateTime('now', $tz);
+$tz_name = $_SESSION['domain']['time_zone']['name'] ?? date_default_timezone_get();
+$tz = new DateTimeZone($tz_name);
+$now = new DateTime('now', $tz);
 $today_630 = new DateTime('today 18:30:00', $tz);
 
 if ($now < $today_630) {
-    // Before today 6:30pm: use yesterday 6:30pm → today 6:30pm
     $start = (clone $today_630)->modify('-1 day');
-    $end   = $today_630;
-}
-else {
-    // After today 6:30pm: use today 6:30pm → tomorrow 6:30pm
+    $end = $today_630;
+} else {
     $start = $today_630;
-    $end   = (clone $today_630)->modify('+1 day');
+    $end = (clone $today_630)->modify('+1 day');
 }
 
 // ----------------------------------------------------------
@@ -215,7 +194,7 @@ echo "</div>\n";
 // 7. Render Details List (Table) with Icons and Times
 // ----------------------------------------------------------
 if ($dashboard_details_state !== 'disabled') {
-    echo "<div class='hud_details hud_box' id='hud_unique_calls_details'>";
+    echo "<div class='hud_details hud_box' id='hud_unique_calls_details' style='display:".($dashboard_details_state === "expanded" ? "block" : "none")."; padding: 10px 0 0 0;'>";
     echo "<table class='tr_hover' width='100%' cellpadding='0' cellspacing='0' border='0'>\n";
     echo "  <tr>\n";
     if ($num_unique > 0) {

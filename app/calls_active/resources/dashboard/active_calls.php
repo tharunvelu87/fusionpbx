@@ -1,6 +1,6 @@
 <?php
 /*
-  FusionPBX Dashboard Widget: Live Active Calls (Fixed Version with Expand Toggle)
+  FusionPBX Dashboard Widget: Active Calls (Fixed to Use Configured Icon and Style)
 */
 
 require_once dirname(__DIR__,4) . '/resources/require.php';
@@ -13,9 +13,22 @@ if (session_status() !== PHP_SESSION_ACTIVE) {
     session_start();
 }
 
-// Required for toggle to work
 $dashboard_name = 'active_calls';
 $dashboard_details_state = $_SESSION['dashboard_details_state'] ?? 'default';
+
+$settings = new settings;
+
+$dashboard_number_background_color = $settings->get('theme', 'dashboard_number_background_color') ?: '#EA4C46';
+$dashboard_number_text_color = $settings->get('theme', 'dashboard_number_text_color') ?: '#FFFFFF';
+
+try {
+    $sql = "SELECT dashboard_icon FROM v_dashboard_blocks WHERE dashboard_name = :name LIMIT 1";
+    $parameters['name'] = $dashboard_name;
+    $dashboard_icon = $database->select($sql, $parameters, 'column') ?: 'fa-phone-volume';
+    unset($parameters);
+} catch (Exception $e) {
+    $dashboard_icon = 'fa-phone-volume';
+}
 
 function get_active_calls($show_all = false) {
     $es = event_socket::create();
@@ -86,18 +99,9 @@ function get_active_calls($show_all = false) {
             if (!$leg) $leg = reset($sip_legs);
         }
 
-        if ($ring) {
-            $status = 'Ringing';
-            $icon   = 'fas fa-bell blink yellow';
-        } elseif ($leg['callstate'] === 'ACTIVE') {
-            $status = 'Connected';
-            $icon   = ($leg['direction'] === 'outbound')
-                    ? 'fas fa-arrow-up blue'
-                    : 'fas fa-arrow-down green';
-        } else {
-            $status = 'Dialed';
-            $icon   = 'fas fa-arrow-up blue';
-        }
+        $status = $ring ? 'Ringing' : ($leg['callstate'] === 'ACTIVE' ? 'Connected' : 'Dialed');
+        $icon   = $ring ? 'fas fa-bell blink yellow' :
+                  ($leg['direction'] === 'outbound' ? 'fas fa-arrow-up blue' : 'fas fa-arrow-down green');
 
         $external = reset(array_filter($sip_legs, function($l) use($domain) {
             return strpos($l['presence_id'], "@{$domain}") === false;
@@ -130,24 +134,20 @@ function get_active_calls($show_all = false) {
             $dst = $external['dest'] ?: $external['initial_dest'];
         }
 
-        if (!empty($leg['duration'])) {
-            $duration = $leg['duration'];
-        } else {
+        $duration = !empty($leg['duration']) ? $leg['duration'] : (function() use ($leg) {
             $ans = intval($leg['answered_epoch'] ?? 0);
             $sec = $ans>0 ? time() - $ans : time() - intval($leg['created_epoch'] ?? time());
             $h = floor($sec/3600);
             $m = floor(($sec%3600)/60);
             $s = $sec%60;
-            $duration = $h>0 ? sprintf('%02d:%02d:%02d',$h,$m,$s) : sprintf('%02d:%02d',$m,$s);
-        }
+            return $h>0 ? sprintf('%02d:%02d:%02d',$h,$m,$s) : sprintf('%02d:%02d',$m,$s);
+        })();
 
         $out[] = compact('icon','cid','dst','duration','status');
     }
-
     return $out;
 }
 
-// AJAX endpoint
 if (!empty($_GET['ajax'])) {
     header('Content-Type:application/json');
     $show_all = permission_exists('call_active_all');
@@ -170,41 +170,32 @@ if (!empty($_GET['ajax'])) {
     exit;
 }
 
-$toggle = ($dashboard_details_state==='disabled')
-    ? ''
-    : " onclick=\"$('#hud_active_calls_details').slideToggle('fast');toggle_grid_row_end('{$dashboard_name}');refreshActiveCalls();\"";
+$toggle = ($dashboard_details_state==='disabled') ? '' : " onclick=\"$('#hud_active_calls_details').slideToggle('fast');toggle_grid_row_end('{$dashboard_name}');refreshActiveCalls();\"";
 ?>
-<div class="hud_box" id="active_calls_widget">
-  <div class="hud_content"<?php echo $toggle;?>>
-    <span class="hud_title"><?php echo $text['label-active_calls'] ?? 'Active Calls';?></span>
-    <div style="position:relative;display:inline-block;margin:0.5rem 0;">
-      <span class="hud_stat"><i class="<?php echo htmlspecialchars($dashboard_icon?:'fas fa-phone-volume');?>"></i></span>
-      <span id="active_calls_count" style="
-        position:absolute;top:22px;left:24px;
-        background:<?php echo $settings->get('theme','dashboard_number_background_color')?:'#ea4c46';?>;
-        color:<?php echo $settings->get('theme','dashboard_number_text_color')?:'#fff';?>;
-        padding:2px 6px;border-radius:10px;font-size:12px;font-weight:bold;
-      ">0</span>
+<div class='hud_box' id='active_calls_widget'>
+  <div class='hud_content'<?php echo $toggle; ?>>
+    <span class='hud_title'><?php echo $text['label-active_calls'] ?? 'Active Calls'; ?></span>
+    <div style='position: relative; display: inline-block;'>
+      <span class='hud_stat'><i class="fas <?php echo $dashboard_icon; ?>"></i></span>
+      <span id='active_calls_count' style="background-color: <?php echo $dashboard_number_background_color; ?>; color: <?php echo $dashboard_number_text_color; ?>; font-size: 12px; font-weight: bold; text-align: center; position: absolute; top: 23px; left: 24.5px; padding: 2px 7px; border-radius: 10px;">0</span>
     </div>
   </div>
 
-  <?php if ($dashboard_details_state!=='disabled'): ?>
-    <div class="hud_details" id="hud_active_calls_details" style="display:<?php echo ($dashboard_details_state === 'expanded') ? '' : 'none'; ?>;padding:10px;">
-      <table class="tr_hover" width="100%" cellpadding="0" cellspacing="0">
-        <tr>
-          <th class="hud_heading" style="border-bottom:1px solid #ccc;">&nbsp;</th>
-          <th class="hud_heading" style="border-bottom:1px solid #ccc;">Caller</th>
-          <th class="hud_heading" style="border-bottom:1px solid #ccc;">Destination</th>
-          <th class="hud_heading" style="border-bottom:1px solid #ccc;">Duration</th>
-          <th class="hud_heading" style="border-bottom:1px solid #ccc;">Status</th>
-        </tr>
-        <tbody id="active_calls_rows">
-          <tr>
-            <td colspan="5" class="hud_text" style="text-align:center;color:#888;">Loading…</td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
+  <?php if ($dashboard_details_state !== 'disabled'): ?>
+  <div class='hud_details hud_box' id='hud_active_calls_details' style='display:<?php echo ($dashboard_details_state === 'expanded') ? '' : 'none'; ?>;'>
+  <table class='tr_hover' width='100%' cellpadding='0' cellspacing='0' border='0'>
+    <tr>
+      <th class='hud_heading'>&nbsp;</th>
+      <th class='hud_heading'>Caller</th>
+      <th class='hud_heading'>Destination</th>
+      <th class='hud_heading'>Duration</th>
+      <th class='hud_heading'>Status</th>
+    </tr>
+    <tbody id='active_calls_rows'>
+      <tr><td colspan='5' class='hud_text' style='text-align:center;color:#888;'>Loading…</td></tr>
+    </tbody>
+  </table>
+</div>
   <?php endif; ?>
 </div>
 
@@ -216,10 +207,9 @@ $toggle = ($dashboard_details_state==='disabled')
   .blue   { color:#417ed3; }
 </style>
 
-<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 <script>
 jQuery(function($){
-  const URL = '<?php echo PROJECT_PATH;?>/app/extensions/resources/dashboard/active_calls.php?ajax=1';
+  const URL = '<?php echo PROJECT_PATH;?>/app/calls_active/resources/dashboard/active_calls.php?ajax=1';
   function refreshActiveCalls(){
     $.getJSON(URL, data=>{
       $('#active_calls_count').text(data.count);
@@ -228,6 +218,5 @@ jQuery(function($){
   }
   refreshActiveCalls();
   setInterval(refreshActiveCalls,5000);
-  $('#active_calls_widget').on('click','.hud_content',refreshActiveCalls);
 });
 </script>
