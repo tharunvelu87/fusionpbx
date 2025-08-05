@@ -1,6 +1,6 @@
 <?php
 /*
-  FusionPBX Dashboard Widget: Live Active Calls (Fixed Version)
+  FusionPBX Dashboard Widget: Live Active Calls (Fixed Version with Expand Toggle)
 */
 
 require_once dirname(__DIR__,4) . '/resources/require.php';
@@ -12,6 +12,10 @@ if (!permission_exists('call_active_view')) {
 if (session_status() !== PHP_SESSION_ACTIVE) {
     session_start();
 }
+
+// Required for toggle to work
+$dashboard_name = 'active_calls';
+$dashboard_details_state = $_SESSION['dashboard_details_state'] ?? 'default';
 
 function get_active_calls($show_all = false) {
     $es = event_socket::create();
@@ -185,14 +189,14 @@ $toggle = ($dashboard_details_state==='disabled')
   </div>
 
   <?php if ($dashboard_details_state!=='disabled'): ?>
-    <div class="hud_details hud_box" id="hud_active_calls_details" style="display:none;padding:10px;">
+    <div class="hud_details" id="hud_active_calls_details" style="display:<?php echo ($dashboard_details_state === 'expanded') ? '' : 'none'; ?>;padding:10px;">
       <table class="tr_hover" width="100%" cellpadding="0" cellspacing="0">
         <tr>
-          <th class="hud_heading">&nbsp;</th>
-          <th class="hud_heading">Caller</th>
-          <th class="hud_heading">Destination</th>
-          <th class="hud_heading">Duration</th>
-          <th class="hud_heading">Status</th>
+          <th class="hud_heading" style="border-bottom:1px solid #ccc;">&nbsp;</th>
+          <th class="hud_heading" style="border-bottom:1px solid #ccc;">Caller</th>
+          <th class="hud_heading" style="border-bottom:1px solid #ccc;">Destination</th>
+          <th class="hud_heading" style="border-bottom:1px solid #ccc;">Duration</th>
+          <th class="hud_heading" style="border-bottom:1px solid #ccc;">Status</th>
         </tr>
         <tbody id="active_calls_rows">
           <tr>
@@ -202,8 +206,6 @@ $toggle = ($dashboard_details_state==='disabled')
       </table>
     </div>
   <?php endif; ?>
-
-
 </div>
 
 <style>
