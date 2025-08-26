@@ -289,7 +289,7 @@ if (isset($_GET['ajax'])) {
 
 <script>
 jQuery(function($){
-  const url = '<?php echo PROJECT_PATH; ?>/app/extensions/resources/dashboard/caller_id3.php';
+  const url = '<?php echo PROJECT_PATH; ?>/app/extensions/resources/dashboard/bulk_caller_id.php';
 
   // Upload list
   $('#caller_id_widget #upload_btn').click(function(){

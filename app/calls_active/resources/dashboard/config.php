@@ -1,11 +1,11 @@
 <?php
 
 $x = 0;
-$array['dashboard'][$x]['dashboard_uuid'] = '60c93c27-4ff4-46ab-b041-6670b25222ef'; // ← generate your own UUID
+$array['dashboard'][$x]['dashboard_uuid'] = '60c93c27-4ff4-46ab-b041-6670b25222ef';
 $array['dashboard'][$x]['dashboard_name'] = 'Live Calls';
 $array['dashboard'][$x]['dashboard_path'] = 'calls_active/active_calls';
-$array['dashboard'][$x]['dashboard_icon'] = 'fa-solid fa-phone';
-$array['dashboard'][$x]['dashboard_icon_color'] = '#000000ff';
+$array['dashboard'][$x]['dashboard_icon'] = 'fa-phone-volume';
+$array['dashboard'][$x]['dashboard_icon_color'] = '#a4a4a4';
 $array['dashboard'][$x]['dashboard_url'] = '';
 $array['dashboard'][$x]['dashboard_target'] = '';
 $array['dashboard'][$x]['dashboard_width'] = '';
@@ -13,15 +13,16 @@ $array['dashboard'][$x]['dashboard_height'] = '';
 $array['dashboard'][$x]['dashboard_content'] = '';
 $array['dashboard'][$x]['dashboard_content_text_align'] = '';
 $array['dashboard'][$x]['dashboard_content_details'] = '';
-$array['dashboard'][$x]['dashboard_chart_type'] = 'number';
+$array['dashboard'][$x]['dashboard_chart_type'] = 'icon';
+$array['dashboard'][$x]['dashboard_chart_type_options'] = ['number', 'doughnut', 'icon'];
 $array['dashboard'][$x]['dashboard_label_enabled'] = 'true';
 $array['dashboard'][$x]['dashboard_label_text_color'] = '#444444';
 $array['dashboard'][$x]['dashboard_label_text_color_hover'] = '';
 $array['dashboard'][$x]['dashboard_label_background_color'] = '';
 $array['dashboard'][$x]['dashboard_label_background_color_hover'] = '';
-$array['dashboard'][$x]['dashboard_number_text_color'] = '';
+$array['dashboard'][$x]['dashboard_number_text_color'] = '#ffffff';
 $array['dashboard'][$x]['dashboard_number_text_color_hover'] = '';
-$array['dashboard'][$x]['dashboard_number_background_color'] = '';
+$array['dashboard'][$x]['dashboard_number_background_color'] = '#ea4c46';
 $array['dashboard'][$x]['dashboard_background_color'] = '';
 $array['dashboard'][$x]['dashboard_background_color_hover'] = '';
 $array['dashboard'][$x]['dashboard_detail_background_color'] = '';
@@ -30,7 +31,7 @@ $array['dashboard'][$x]['dashboard_row_span'] = '1';
 $array['dashboard'][$x]['dashboard_details_state'] = 'hidden';
 $array['dashboard'][$x]['dashboard_order'] = '10';
 $array['dashboard'][$x]['dashboard_enabled'] = 'true';
-$array['dashboard'][$x]['dashboard_description'] = 'Displays Active Calls';
+$array['dashboard'][$x]['dashboard_description'] = 'Displays Active Calls with detailed information';
 
 $y = 0;
 $array['dashboard'][$x]['dashboard_groups'][$y]['dashboard_group_uuid'] = '7e9ed478-bd45-47a3-86eb-fbbffa11ed6a';
