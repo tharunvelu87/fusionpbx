@@ -34,6 +34,35 @@
 //set the max execution time to 1 hour
 	ini_set('max_execution_time',3600);
 
+//define the asynchronous command function
+	/**
+	 * Asynchronously executes a command.
+	 *
+	 * This method runs the given $cmd as an asynchronous process. On Windows, it uses
+	 * proc_open to create a new process with pipes for stdin, stdout, and stderr. On
+	 * Posix systems (e.g., Linux, macOS), it uses exec to run the command in the background.
+	 *
+	 * @param string $cmd The command to execute asynchronously.
+	 *
+	 * @return int|bool The return value of proc_close() on Windows or false on failure; null if not executed successfully.
+	 */
+	function cmd_async($cmd) {
+		//windows
+		if (stristr(PHP_OS, 'WIN')) {
+			$descriptorspec = array(
+				0 => array("pipe", "r"),  // stdin
+				1 => array("pipe", "w"),  // stdout
+				2 => array("pipe", "w")   // stderr
+			);
+			$process = proc_open("start ".$cmd, $descriptorspec, $pipes);
+			//sleep(1);
+			proc_close($process);
+		}
+		else { //posix
+			exec ($cmd ." /dev/null 2>&1 &");
+		}
+	}
+
 //get the http get values and set as php variables
 	$call_broadcast_uuid = $_GET["id"] ?? '';
 
@@ -43,7 +72,6 @@
 	$sql .= "and call_broadcast_uuid = :call_broadcast_uuid ";
 	$parameters['domain_uuid'] = $_SESSION['domain_uuid'];
 	$parameters['call_broadcast_uuid'] = $call_broadcast_uuid;
-	$database = new database;
 	$row = $database->select($sql, $parameters, 'row');
 	if (!empty($row)) {
 		$broadcast_name = $row["broadcast_name"];
@@ -88,60 +116,84 @@
 			$tmp_value = str_replace(";", "|", $tmp_value);
 			$phone_number = preg_replace('{\D}', '', explode("|", $tmp_value)[0]);
 
-			if (is_numeric($phone_number)) {
-				//prepare the channel variables
-				$channel_variables = [
-					"ignore_early_media=true",
-					"origination_caller_id_name='$broadcast_caller_id_name'",  // Outbound caller ID
-					"origination_caller_id_number=$broadcast_caller_id_number", // Outbound caller ID
-					"effective_caller_id_number=$phone_number",  // What the destination sees
-					"effective_caller_id_name=$phone_number",    // What the destination sees
-					"domain_uuid=".$_SESSION['domain_uuid'],
-					"domain_name=".$_SESSION['domain_name'],
-					"accountcode='$broadcast_accountcode'"
-				];
-				
-				//add AVMD if enabled
-				if ($broadcast_avmd == "true") {
-					$channel_variables[] = "execute_on_answer='avmd start'";
+					if (is_numeric($phone_1)) {
+						//get the dialplan variables and bridge statement
+							//$dialplan = new dialplan;
+							//$dialplan->domain_uuid = $_SESSION['domain_uuid'];
+							//$dialplan->outbound_routes($phone_1);
+							//$dialplan_variables = $dialplan->variables;
+							//$bridge_array[0] = $dialplan->bridges;
+
+						//prepare the string
+							$channel_variables = "ignore_early_media=true";
+							$channel_variables .= ",origination_number=".$phone_1;
+							$channel_variables .= ",origination_caller_id_name='$broadcast_caller_id_name'";
+							$channel_variables .= ",origination_caller_id_number=$broadcast_caller_id_number";
+							$channel_variables .= ",domain_uuid=".$_SESSION['domain_uuid'];
+							$channel_variables .= ",domain=".$_SESSION['domain_name'];
+							$channel_variables .= ",domain_name=".$_SESSION['domain_name'];
+							$channel_variables .= ",accountcode='$broadcast_accountcode'";
+							$channel_variables .= ",toll_allow='$broadcast_toll_allow'";
+							if ($broadcast_avmd == "true") {
+								$channel_variables .= ",execute_on_answer='avmd start'";
+							}
+							//$origination_url = "{".$channel_variables."}".$bridge_array[0];
+							$origination_url = "{".$channel_variables."}loopback/".$phone_1.'/'.$_SESSION['domain_name'];
+
+						//get the context
+							$context =  $_SESSION['domain_name'];
+
+						//set the command
+							$cmd = "bgapi sched_api +".$sched_seconds." ".$call_broadcast_uuid." bgapi originate ".$origination_url." ".$broadcast_destination_data." XML $context";
+
+						//if the event socket connection is lost then re-connect
+							if (!$fp) {
+								$fp = event_socket::create();
+							}
+
+						//method 1
+							$response = event_socket::command($cmd);
+
+						//method 2
+							//cmd_async($settings->get('switch', 'bin')."/fs_cli -x \"".$cmd."\";");
+
+						//spread the calls out so that they are scheduled with different times
+							if (strlen($broadcast_concurrent_limit) > 0 && !empty($broadcast_timeout)) {
+								if ($broadcast_concurrent_limit == $count) {
+									$sched_seconds = $sched_seconds + $broadcast_timeout;
+									$count=0;
+								}
+							}
+
+						$count++;
+					}
 				}
 				
-				//create the originate string
-				$channel_vars_string = implode(",", $channel_variables);
-				$origination_url = "{".$channel_vars_string."}loopback/$phone_number/".$_SESSION['domain_name'];
-				$context = $_SESSION['domain_name'];
-				
-				//build the command
-				$cmd = "bgapi sched_api +".$sched_seconds." ".$call_broadcast_uuid." bgapi originate ".$origination_url." ".$broadcast_destination_data." XML $context";
-				
-				//execute the command
-				$response = event_socket::command($cmd);
-				
-				//throttle calls if concurrent limit is set
-				if (!empty($broadcast_concurrent_limit) && $broadcast_concurrent_limit == $count) {
-					$sched_seconds += $broadcast_timeout;
-					$count = 0;
+				echo "<div align='center'>\n";
+				echo "<table width='50%'>\n";
+				echo "<tr>\n";
+				echo "<th align='left'>Message</th>\n";
+				echo "</tr>\n";
+				echo "<tr>\n";
+				echo "<td class='row_style1' align='center'>\n";
+				echo "	<strong>".$text['label-call-broadcast']." ".$broadcast_name." ".$text['label-has-been']."</strong>\n";
+
+				if (permission_exists('call_active_view')) {
+					echo "	<br /><br />\n";
+					echo "	<table width='100%'>\n";
+					echo "	<tr>\n";
+					echo "	<td align='center'>\n";
+					echo "		<a href='".PROJECT_PATH."/app/active_calls/active_calls.php'>".$text['label-view-calls']."</a>\n";
+					echo "	</td>\n";
+					echo "	</table>\n";
 				}
-				
-				$count++;
+
+				echo "</td>\n";
+				echo "</tr>\n";
+				echo "</table>\n";
+				echo "</div>\n";
+
 			}
-		}
-		
-		//show success message
-		echo "<div align='center'>";
-		echo "<table width='50%'>";
-		echo "<tr><th align='left'>Message</th></tr>";
-		echo "<tr><td class='row_style1' align='center'>";
-		echo "<strong>".$text['label-call-broadcast']." ".$broadcast_name." ".$text['label-has-been']."</strong>";
-		
-		if (permission_exists('call_active_view')) {
-			echo "<br /><br /><table width='100%'><tr><td align='center'>";
-			echo "<a href='".PROJECT_PATH."/app/calls_active/calls_active.php'>".$text['label-view-calls']."</a>";
-			echo "</td></tr></table>";
-		}
-		
-		echo "</td></tr></table></div>";
-	}
 
 //show the footer
 	require_once "resources/footer.php";

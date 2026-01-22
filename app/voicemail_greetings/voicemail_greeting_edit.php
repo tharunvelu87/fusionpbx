@@ -17,7 +17,7 @@
 
 	The Initial Developer of the Original Code is
 	Mark J Crane <markjcrane@fusionpbx.com>
-	Portions created by the Initial Developer are Copyright (C) 2008-2024
+	Portions created by the Initial Developer are Copyright (C) 2008-2025
 	the Initial Developer. All Rights Reserved.
 
 	Contributor(s):
@@ -29,10 +29,7 @@
 	require_once "resources/check_auth.php";
 
 //check permissions
-	if (permission_exists('voicemail_greeting_edit')) {
-		//access granted
-	}
-	else {
+	if (!permission_exists('voicemail_greeting_edit')) {
 		echo "access denied";
 		exit;
 	}
@@ -43,10 +40,16 @@
 
 //add the settings object
 	$settings = new settings(["domain_uuid" => $_SESSION['domain_uuid'], "user_uuid" => $_SESSION['user_uuid']]);
-	$speech_enabled = $settings->get('speech', 'enabled', false);
+
+//as long as the class exists, enable speech using default settings
+	$speech_enabled = class_exists('speech') && $settings->get('speech', 'enabled', false);
 	$speech_engine = $settings->get('speech', 'engine', '');
-	$transcribe_enabled = $settings->get('transcribe', 'enabled', false);
+
+//as long as the class exists, enable transcribe using default settings
+	$transcribe_enabled = class_exists('transcribe') && $settings->get('transcribe', 'enabled', false);
 	$transcribe_engine = $settings->get('transcribe', 'engine', '');
+
+//set the storage type from default settings
 	$storage_type = $settings->get('voicemail', 'storage_type', '');
 
 //set defaults
@@ -54,9 +57,10 @@
 	$language_enabled = false;
 
 //add the speech object and get the voices and languages arrays
-	if ($speech_enabled && !empty($speech_engine)) {
+	if (class_exists('speech') && $speech_enabled && !empty($speech_engine)) {
 		$speech = new speech($settings);
 		$voices = $speech->get_voices();
+		$greeting_format = $speech->get_format();
 		//$speech_models = $speech->get_models();
 		//$translate_enabled = $speech->get_translate_enabled();
 		//$language_enabled = $speech->get_language_enabled();
@@ -64,7 +68,7 @@
 	}
 
 //add the transcribe object and get the languages arrays
-	if ($transcribe_enabled && !empty($transcribe_engine)) {
+	if (class_exists('transcribe') && $transcribe_enabled && !empty($transcribe_engine)) {
 		$transcribe = new transcribe($settings);
 		//$transcribe_models = $transcribe->get_models();
 		//$translate_enabled = $transcribe->get_translate_enabled();
@@ -106,15 +110,17 @@ if (!empty($_POST) && empty($_POST["persistformvar"])) {
 		if (permission_exists('voicemail_greeting_delete')) {
 			if (!empty($_POST['action']) && $_POST['action'] == 'delete' && is_uuid($voicemail_greeting_uuid)) {
 				//prepare
-					$array[0]['checked'] = 'true';
-					$array[0]['uuid'] = $voicemail_greeting_uuid;
+				$array[0]['checked'] = 'true';
+				$array[0]['uuid'] = $voicemail_greeting_uuid;
+
 				//delete
-					$obj = new voicemail_greetings;
-					$obj->voicemail_id = $voicemail_id;
-					$obj->delete($array);
+				$obj = new voicemail_greetings;
+				$obj->voicemail_id = $voicemail_id;
+				$obj->delete($array);
+
 				//redirect
-					header("Location: voicemail_greetings.php?id=".$voicemail_id);
-					exit;
+				header("Location: voicemail_greetings.php?id=".$voicemail_id);
+				exit;
 			}
 		}
 
@@ -152,7 +158,6 @@ if (!empty($_POST) && empty($_POST["persistformvar"])) {
 		$sql .= "order by greeting_id asc ";
 		$parameters['domain_uuid'] = $_SESSION['domain_uuid'];
 		$parameters['voicemail_id'] = $voicemail_id;
-		$database = new database;
 		$rows = $database->select($sql, $parameters, 'all');
 		$greeting_ids = array();
 		if (!empty($rows) && is_array($rows)) {
@@ -162,17 +167,22 @@ if (!empty($_POST) && empty($_POST["persistformvar"])) {
 		}
 		unset($sql, $parameters);
 
-		//set the recording format
-		$greeting_format = $greeting_format ?? 'wav';
-
 		//build the setting object and get the recording path
-		$greeting_path = $settings->get('switch', 'voicemail').'/default/'.$_SESSION['domain_name'].'/'.$voicemail_id.'/';
+		$greeting_path = $settings->get('switch', 'voicemail').'/default/'.$_SESSION['domain_name'].'/'.$voicemail_id;
+
+		//set the recording format
+		$greeting_files = glob($greeting_path.'/greeting_'.$greeting_id.'.*');
+		if (empty($greeting_format) && !empty($greeting_files)) {
+			$greeting_format = pathinfo($greeting_files[0], PATHINFO_EXTENSION);
+		} else {
+			$greeting_format = $greeting_format ?? 'wav';
+		}
 
 		if ($action == 'add') {
 			//find the next available greeting id
 			$greeting_id = 0;
 			for ($i = 1; $i <= 9; $i++) {
-				if (!in_array($i, $greeting_ids) && !file_exists($greeting_path.'greeting_'.$i.'.'.$greeting_format)) {
+				if (!in_array($i, $greeting_ids) && !file_exists($greeting_path.'/greeting_'.$i.'.'.$greeting_format)) {
 					$greeting_id = $i;
 					break;
 				}
@@ -198,9 +208,9 @@ if (!empty($_POST) && empty($_POST["persistformvar"])) {
 				//fix invalid riff & data header lengths in generated wave file
 				if ($speech_engine == 'openai') {
 					$greeting_filename_temp = str_replace('.'.$greeting_format, '.tmp.'.$greeting_format, $greeting_filename);
-					exec('sox --ignore-length '.$greeting_path.$greeting_filename.' '.$greeting_path.$greeting_filename_temp);
+					exec('sox --ignore-length '.$greeting_path.'/'.$greeting_filename.' '.$greeting_path.'/'.$greeting_filename_temp);
 					if (file_exists($greeting_path.$greeting_filename_temp)) {
-						exec('rm -f '.$greeting_path.$greeting_filename.' && mv '.$greeting_path.$greeting_filename_temp.' '.$greeting_path.$greeting_filename);
+						exec('rm -f '.$greeting_path.'/'.$greeting_filename.' && mv '.$greeting_path.'/'.$greeting_filename_temp.' '.$greeting_path.'/'.$greeting_filename);
 					}
 					unset($greeting_filename_temp);
 				}
@@ -210,7 +220,7 @@ if (!empty($_POST) && empty($_POST["persistformvar"])) {
 			if ($transcribe_enabled && empty($greeting_voice) && empty($greeting_message)) {
 				$transcribe->audio_path = $greeting_path;
 				$transcribe->audio_filename = $greeting_filename;
-				$greeting_message = $transcribe->transcribe();
+				$greeting_message = $transcribe->transcribe('text');
 			}
 
 			//if base64 is enabled base64
@@ -230,20 +240,16 @@ if (!empty($_POST) && empty($_POST["persistformvar"])) {
 			$array['voicemail_greetings'][0]['greeting_description'] = $greeting_description;
 
 			//execute query
-			$database = new database;
-			$database->app_name = 'voicemail_greetings';
-			$database->app_uuid = 'e4b4fbee-9e4d-8e46-3810-91ba663db0c2';
 			$database->save($array);
 			unset($array);
 
 			//set message
 			message::add($text['message-'.($action == 'add' ? 'greeting_created' : 'update')]);
-
 		}
 
 		//redirect
-			header("Location: voicemail_greetings.php?id=".$voicemail_id);
-			exit;
+		header("Location: voicemail_greetings.php?id=".$voicemail_id);
+		exit;
 	}
 }
 
@@ -258,7 +264,6 @@ if (!empty($_POST) && empty($_POST["persistformvar"])) {
 		$sql .= "and voicemail_greeting_uuid = :voicemail_greeting_uuid ";
 		$parameters['domain_uuid'] = $_SESSION['domain_uuid'];
 		$parameters['voicemail_greeting_uuid'] = $voicemail_greeting_uuid;
-		$database = new database;
 		$row = $database->select($sql, $parameters, 'row');
 		if (is_array($row) && @sizeof($row) != 0) {
 			$greeting_id = $row["greeting_id"];
@@ -385,17 +390,16 @@ if (!empty($_POST) && empty($_POST["persistformvar"])) {
 			echo "	".$text['label-translate']."\n";
 			echo "</td>\n";
 			echo "<td class='vtable' align='left'>\n";
-			if (substr($_SESSION['theme']['input_toggle_style']['text'], 0, 6) == 'switch') {
-				echo "	<label class='switch'>\n";
-				echo "		<input type='checkbox' id='translate' name='translate' value='true' ".($translate == 'true' ? "checked='checked'" : null).">\n";
-				echo "		<span class='slider'></span>\n";
-				echo "	</label>\n";
+			if ($input_toggle_style_switch) {
+				echo "	<span class='switch'>\n";
 			}
-			else {
-				echo "	<select class='formfld' id='translate' name='translate'>\n";
-				echo "		<option value='true' ".($translate == 'true' ? "selected='selected'" : null).">".$text['option-true']."</option>\n";
-				echo "		<option value='false' ".($translate == 'false' ? "selected='selected'" : null).">".$text['option-false']."</option>\n";
-				echo "	</select>\n";
+			echo "	<select class='formfld' id='translate' name='translate'>\n";
+			echo "		<option value='true' ".($translate == true ? "selected='selected'" : null).">".$text['option-true']."</option>\n";
+			echo "		<option value='false' ".($translate == false ? "selected='selected'" : null).">".$text['option-false']."</option>\n";
+			echo "	</select>\n";
+			if ($input_toggle_style_switch) {
+				echo "		<span class='slider'></span>\n";
+				echo "	</span>\n";
 			}
 			echo "<br />\n";
 			echo $text['description-translate']."\n";
@@ -408,13 +412,12 @@ if (!empty($_POST) && empty($_POST["persistformvar"])) {
 		echo "    ".$text['label-message']."\n";
 		echo "</td>\n";
 		echo "<td class='vtable' align='left'>\n";
-		echo "    <textarea class='formfld' name='greeting_message' style='width: 300px; height: 150px;'>".escape($greeting_message ?? '')."</textarea>\n";
+		echo "    <textarea class='formfld' name='greeting_message' style='width: 300px; height: 150px;'>".escape_textarea($greeting_message ?? '')."</textarea>\n";
 		echo "<br />\n";
 		echo $text['description-message']."\n";
 		echo "</td>\n";
 		echo "</tr>\n";
 	}
-
 
 	echo "<tr>\n";
 	echo "<td class='vncell' valign='top' align='left' nowrap>\n";

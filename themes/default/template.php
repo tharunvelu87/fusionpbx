@@ -1,4 +1,3 @@
-{* <?php *}
 
 {*//set the doctype *}
 	{if $browser_name == 'Internet Explorer'}
@@ -20,7 +19,7 @@
 	<link rel='stylesheet' type='text/css' href='{$project_path}/resources/bootstrap/css/bootstrap-tempusdominus.min.css.php'>
 	<link rel='stylesheet' type='text/css' href='{$project_path}/resources/bootstrap/css/bootstrap-colorpicker.min.css.php'>
 	<link rel='stylesheet' type='text/css' href='{$project_path}/resources/fontawesome/css/all.min.css.php'>
-	<link rel='stylesheet' type='text/css' href='{$project_path}/themes/default/css.php?updated=202507301100'>
+	<link rel='stylesheet' type='text/css' href='{$project_path}/themes/default/css.php?updated=202512160230'>
 {*//link to custom css file *}
 	{if !empty($settings.theme.custom_css)}
 		<link rel='stylesheet' type='text/css' href='{$settings.theme.custom_css}'>
@@ -461,7 +460,7 @@
 					{/if}
 
 				//key: [ctrl]+[c], list,edit: to copy
-					{if $settings.theme.keyboard_shortcut_copy_enabled}
+					{if $settings.theme.keyboard_shortcut_copy_enabled|default:false}
 						{if $browser_name_short == 'Safari'} //emulate with detecting [c] only, as [command] and [control] keys are ignored when captured
 							{literal}
 							if (
@@ -568,9 +567,23 @@
 					});
 				//define formatting of individual classes
 					$('.datepicker').datetimepicker({ format: 'YYYY-MM-DD', });
-					$('.datetimepicker').datetimepicker({ format: 'YYYY-MM-DD HH:mm', });
-					$('.datetimepicker-future').datetimepicker({ format: 'YYYY-MM-DD HH:mm', minDate: new Date(), });
-					$('.datetimesecpicker').datetimepicker({ format: 'YYYY-MM-DD HH:mm:ss', });
+					{/literal}
+
+					{if !empty($time_format) && $time_format == '24h'}
+						{literal}
+						$(".datetimepicker").datetimepicker({ format: 'YYYY-MM-DD HH:mm', });
+						$(".datetimepicker-future").datetimepicker({ format: 'YYYY-MM-DD HH:mm', minDate: new Date(), });
+						$(".datetimesecpicker").datetimepicker({ format: 'YYYY-MM-DD HH:mm:ss', });
+						{/literal}
+					{else}
+						{literal}
+						$(".datetimepicker").datetimepicker({ format: 'YYYY-MM-DD hh:mm a', });
+						$(".datetimepicker-future").datetimepicker({ format: 'YYYY-MM-DD hh:mm a', minDate: new Date(), });
+						$(".datetimesecpicker").datetimepicker({ format: 'YYYY-MM-DD hh:mm:ss a', });
+						{/literal}
+					{/if}
+
+			{literal}
 			});
 			{/literal}
 
@@ -704,6 +717,18 @@
 					return this.animate({opacity: 'toggle', height: 'toggle'}, speed, easing, callback);
 				};
 			})(jQuery);
+			{/literal}
+
+		//slide toggle
+			{literal}
+			var switches = document.getElementsByClassName('switch');
+			var toggle = function(){
+				this.children[0].value = (this.children[0].value == 'false' ? 'true' : 'false');
+				this.children[0].dispatchEvent(new Event('change'));
+				};
+			for (var i = 0; i < switches.length; i++) {
+				switches[i].addEventListener('click', toggle, false);
+			}
 			{/literal}
 
 	{literal}
@@ -947,7 +972,7 @@
 	//list page functions
 		{literal}
 		function list_all_toggle(modifier) {
-			var checkboxes = (modifier !== undefined) ? document.getElementsByClassName('checkbox_'+modifier) : document.querySelectorAll("input[type='checkbox']");
+			var checkboxes = (modifier !== undefined) ? document.getElementsByClassName('checkbox_'+modifier) : document.querySelectorAll("input[type='checkbox']:not([id*='_enabled'])");
 			var checkbox_checked = document.getElementById('checkbox_all' + (modifier !== undefined ? '_'+modifier : '')).checked;
 			for (var i = 0, max = checkboxes.length; i < max; i++) {
 				checkboxes[i].checked = checkbox_checked;
@@ -1059,6 +1084,40 @@
 				}
 			}
 			document.activeElement.blur();
+		}
+
+		function modal_display_selected(modal_id) {
+			const selected_items = [];
+			const modal_message_element = document.querySelector(`#${modal_id} .modal-message`);
+
+			if (!modal_message_element.hasAttribute('data-message')) {
+				modal_message_element.setAttribute('data-message', modal_message_element.innerHTML);
+				modal_message_element.style.cssText += 'max-height: 50vh; overflow: scroll;';
+			}
+			const message = modal_message_element.getAttribute('data-message');
+
+			document.querySelectorAll('input[type="checkbox"]:checked:not(#checkbox_all)').forEach(checkbox => {
+				selected_items.push({
+					name: checkbox.dataset.itemName,
+					domain: checkbox.dataset.itemDomain
+				});
+			});
+
+			if (selected_items.length > 0) {
+				content = message;
+				content += '<table style="margin: 20px 40px; min-width: 70%;">';
+				content += '	<tbody>';
+				selected_items.forEach(item => {
+					content += '	<tr>';
+					content += `		<td style="display: list-item;">${item.name}</td>`;
+					content += `		<td>${item.domain || ''}</td>`;
+					content += '	</tr>';
+				});
+				content += '	</tbody>';
+				content += '</table>';
+
+				modal_message_element.innerHTML = content;
+			}
 		}
 		{/literal}
 
@@ -1190,7 +1249,7 @@
 <body>
 
 	{*//video background *}
-	{if !empty({$background_video})}
+	{if !empty($background_video)}
 		<video id="background-video" autoplay muted poster="" disablePictureInPicture="true" onloadstart="this.playbackRate = 1; this.pause();">
 			<source src="{$background_video}" type="video/mp4">
 		</video>

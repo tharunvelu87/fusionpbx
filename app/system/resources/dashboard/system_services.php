@@ -28,23 +28,30 @@
 
 //includes files
 	require_once dirname(__DIR__, 4) . "/resources/require.php";
+	require_once "resources/check_auth.php";
 
 //check permissions
-	require_once "resources/check_auth.php";
-	if (permission_exists('xml_cdr_view')) {
-		//access granted
-	}
-	else {
+	if (!permission_exists('xml_cdr_view')) {
 		echo "access denied";
 		exit;
 	}
 
 //function to parse a FusionPBX service from a .service file
 	if (!function_exists('get_classname')) {
+		/**
+		 * Retrieves the name of a PHP class from an ExecStart directive in a service file.
+		 *
+		 * @param string $file Path to the service file.
+		 *
+		 * @return string The name of the PHP class, or empty string if not found.
+		 */
 		function get_classname(string $file) {
+			if (!file_exists($file)) {
+				return '';
+			}
 			$parsed = parse_ini_file($file);
-			$exec_cmd = $parsed['ExecStart'];
-			$parts = explode(' ', $exec_cmd);
+			$exec_cmd = $parsed['ExecStart'] ?? '';
+			$parts = explode(' ', $exec_cmd ?? '');
 			$php_file = $parts[1] ?? '';
 			if (!empty($php_file)) {
 				return $php_file;
@@ -55,11 +62,19 @@
 
 //function to check for running process: returns [running, pid, etime]
 	if (!function_exists('is_running')) {
+		/**
+		 * Checks if a process with the given name is currently running.
+		 *
+		 * @param string $name The name of the process to check for.
+		 *
+		 * @return array An array containing information about the process's status,
+		 *               including whether it's running, its PID, and how long it's been running.
+		 */
 		function is_running(string $name) {
 			$name = escapeshellarg($name);
-			$pid = trim(shell_exec("ps -aux | grep $name | grep -v grep | awk '{print \$2}' | head -n 1"));
+			$pid = trim(shell_exec("ps -aux | grep $name | grep -v grep | awk '{print \$2}' | head -n 1") ?? '');
 			if ($pid && is_numeric($pid)) {
-				$etime = trim(shell_exec("ps -p $pid -o etime= | tr -d '\n'"));
+				$etime = trim(shell_exec("ps -p $pid -o etime= | tr -d '\n'") ?? '');
 				return ['running' => true, 'pid' => $pid, 'etime' => $etime];
 			}
 			return ['running' => false, 'pid' => null, 'etime' => null];
@@ -68,6 +83,21 @@
 
 //function to format etime into friendly display
 	if (!function_exists('format_etime')) {
+		/**
+		 * Formats a time duration string into a human-readable format.
+		 *
+		 * The input string can be in one of the following formats:
+		 * - dd-hh:mm:ss
+		 * - hh:mm:ss
+		 * - mm:ss
+		 * - seconds (no units)
+		 *
+		 * If the input string is empty or invalid, an empty string will be returned.
+		 *
+		 * @param string $etime Time duration string to format.
+		 *
+		 * @return string Formatted time duration string in human-readable format.
+		 */
 		function format_etime($etime) {
 			// Format: [[dd-]hh:]mm:ss
 			if (empty($etime)) return '-';
@@ -154,16 +184,22 @@
 //track total installed services for charts
 	$total_services = count($services);
 
+//convert to a key
+	$widget_key = str_replace(' ', '_', strtolower($widget_name));
+
 //add multi-lingual support
 	$text = (new text())->get($settings->get('domain','language','en-us'), 'core/user_settings');
 
+//get the dashboard label
+	$widget_label = $text['label-'.$widget_key] ?? $widget_name;
+
 //show the results
 echo "<div class='hud_box'>\n";
-echo "	<div class='hud_content' ".($dashboard_details_state == 'disabled' ?: "onclick=\"$('#hud_system_services_details').slideToggle('fast'); toggle_grid_row_end('$dashboard_id');\""). ">\n";
-echo "		<span class='hud_title'>System Services</span>\n";
+echo "	<div class='hud_content' ".($widget_details_state == 'disabled' ?: "onclick=\"$('#hud_system_services_details').slideToggle('fast');\""). ">\n";
+echo "		<span class='hud_title'>".escape($widget_label)."</span>\n";
 
 //doughnut chart
-if (!isset($dashboard_chart_type) || $dashboard_chart_type == "doughnut") {
+if (!isset($widget_chart_type) || $widget_chart_type == "doughnut") {
 	echo "	<div class='hud_chart' style='width: 250px;'><canvas id='system_services_chart'></canvas></div>\n";
 	echo "	<script>\n";
 	echo "		const system_services_chart = new Chart (\n";
@@ -193,7 +229,7 @@ if (!isset($dashboard_chart_type) || $dashboard_chart_type == "doughnut") {
 	echo "							labels: {\n";
 	echo "								usePointStyle: true,\n";
 	echo "								pointStyle: 'rect',\n";
-	echo "								color: '$dashboard_heading_text_color'\n";
+	echo "								color: '$widget_label_text_color'\n";
 	echo "							}\n";
 	echo "						}\n";
 	echo "					}\n";
@@ -205,7 +241,7 @@ if (!isset($dashboard_chart_type) || $dashboard_chart_type == "doughnut") {
 	echo "						ctx.font = chart_text_size + ' ' + chart_text_font;\n";
 	echo "						ctx.textBaseline = 'middle';\n";
 	echo "						ctx.textAlign = 'center';\n";
-	echo "						ctx.fillStyle = '$dashboard_number_text_color';\n";
+	echo "						ctx.fillStyle = '$widget_number_text_color';\n";
 	echo "						ctx.fillText(options.text, width / 2, top + (height / 2));\n";
 	echo "						ctx.save();\n";
 	echo "					}\n";
@@ -214,12 +250,12 @@ if (!isset($dashboard_chart_type) || $dashboard_chart_type == "doughnut") {
 	echo "		);\n";
 	echo "	</script>\n";
 }
-if ($dashboard_chart_type == "number") {
+if ($widget_chart_type == "number") {
 	echo "	<span class='hud_stat'>".$total_services."</span>";
 }
 echo "	</div>\n";
 
-if ($dashboard_details_state != 'disabled') {
+if ($widget_details_state != 'disabled') {
 	echo "	<div class='hud_details hud_box' id='hud_system_services_details'>\n";
 	echo "		<table class='tr_hover' width='100%' cellpadding='0' cellspacing='0' border='0'>\n";
 	echo "			<tr>\n";
@@ -250,5 +286,6 @@ if ($dashboard_details_state != 'disabled') {
 
 	echo "		</table>\n";
 	echo "	</div>\n";
+	echo "<span class='hud_expander' onclick=\"$('#hud_system_services_details').slideToggle('fast');\"><span class='fas fa-ellipsis-h'></span></span>";
 }
 echo "</div>\n";

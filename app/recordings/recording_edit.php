@@ -30,10 +30,7 @@
 	require_once "resources/check_auth.php";
 
 //check permissions
-	if (permission_exists('recording_add') || permission_exists('recording_edit')) {
-		//access granted
-	}
-	else {
+	if (!(permission_exists('recording_add') || permission_exists('recording_edit'))) {
 		echo "access denied";
 		exit;
 	}
@@ -41,9 +38,6 @@
 //add multi-lingual support
 	$language = new text;
 	$text = $language->get();
-
-//initialize the database connection
-	$database = database::new();
 
 //set defaults
 	$recording_name = '';
@@ -53,17 +47,23 @@
 	$translate_enabled = false;
 	$language_enabled = false;
 
+//set the variables
+	$domain_uuid = $_SESSION['domain_uuid'];
+	$domain_name = $_SESSION['domain_name'];
+	$user_uuid = $_SESSION['user_uuid'];
+
 //add the settings object
-	$settings = new settings(["domain_uuid" => $_SESSION['domain_uuid'], "user_uuid" => $_SESSION['user_uuid']]);
-	$speech_enabled = $settings->get('speech', 'enabled', false);
+	$settings = new settings(["domain_uuid" => $domain_uuid, "user_uuid" => $user_uuid]);
+	$speech_enabled = class_exists('speech') && $settings->get('speech', 'enabled', false);
 	$speech_engine = $settings->get('speech', 'engine', '');
-	$transcribe_enabled = $settings->get('transcribe', 'enabled', false);
+	$transcribe_enabled = class_exists('transcribe') && $settings->get('transcribe', 'enabled', false);
 	$transcribe_engine = $settings->get('transcribe', 'engine', '');
 
 //add the speech object and get the voices and languages arrays
 	if ($speech_enabled && !empty($speech_engine)) {
 		$speech = new speech($settings);
 		$voices = $speech->get_voices();
+		$recording_extension = $speech->get_format();
 		//$speech_models = $speech->get_models();
 		//$translate_enabled = $speech->get_translate_enabled();
 		//$language_enabled = $speech->get_language_enabled();
@@ -102,8 +102,8 @@
 
 		//sanitize: recording_filename
 		if (!empty($recording_filename)) {
-			$recording_filename_ext = strtolower(pathinfo($recording_filename, PATHINFO_EXTENSION));
-			if (!in_array($recording_filename_ext, ['wav','mp3','ogg'])) {
+			$recording_extension = strtolower(pathinfo($recording_filename, PATHINFO_EXTENSION));
+			if (!in_array($recording_extension, ['wav','mp3','ogg'])) {
 				$recording_filename = pathinfo($recording_filename, PATHINFO_FILENAME);
 				$recording_filename = str_replace('.', '', $recording_filename);
 			}
@@ -188,7 +188,7 @@
 				}
 
 				//build the setting object and get the recording path
-				$recording_path = $settings->get('switch', 'recordings').'/'.$_SESSION['domain_name'];
+				$recording_path = $settings->get('switch', 'recordings').'/'.$domain_name;
 
 				//if file name is not the same then rename the file
 				if (!empty($recording_filename) && !empty($recording_filename_original)
@@ -223,7 +223,6 @@
 				if ($create_recording) {
 					$speech->audio_path = $recording_path;
 					$speech->audio_filename = $recording_filename;
-					$speech->audio_format = $recording_extension;
 					//$speech->audio_model = $recording_model ?? '';
 					$speech->audio_voice = $recording_voice;
 					//$speech->audio_language = $recording_language;
@@ -248,7 +247,7 @@
 				if ($transcribe_enabled && empty($recording_message)) {
 					$transcribe->audio_path = $recording_path;
 					$transcribe->audio_filename = $recording_filename;
-					$recording_message = $transcribe->transcribe();
+					$recording_message = $transcribe->transcribe('text');
 				}
 
 				//build array
@@ -267,8 +266,6 @@
 				$array['recordings'][0]['recording_description'] = $recording_description;
 
 				//execute update
-				$database->app_name = 'recordings';
-				$database->app_uuid = '83913217-c7a2-9e90-925d-a866eb40b60e';
 				$database->save($array);
 				unset($array);
 
@@ -434,17 +431,16 @@
 			echo "	".$text['label-translate']."\n";
 			echo "</td>\n";
 			echo "<td class='vtable' align='left'>\n";
-			if (substr($_SESSION['theme']['input_toggle_style']['text'], 0, 6) == 'switch') {
-				echo "	<label class='switch'>\n";
-				echo "		<input type='checkbox' id='translate' name='translate' value='true' ".(!empty($translate) && $translate == 'true' ? "checked='checked'" : null).">\n";
-				echo "		<span class='slider'></span>\n";
-				echo "	</label>\n";
+			if ($input_toggle_style_switch) {
+				echo "	<span class='switch'>\n";
 			}
-			else {
-				echo "	<select class='formfld' id='translate' name='translate'>\n";
-				echo "		<option value='true'>".$text['option-true']."</option>\n";
-				echo "		<option value='false' ".(!empty($translate) && $translate == 'false' ? "selected='selected'" : null).">".$text['option-false']."</option>\n";
-				echo "	</select>\n";
+			echo "	<select class='formfld' id='translate' name='translate'>\n";
+			echo "		<option value='true' ".($translate == true ? "selected='selected'" : null).">".$text['option-true']."</option>\n";
+			echo "		<option value='false' ".($translate == false ? "selected='selected'" : null).">".$text['option-false']."</option>\n";
+			echo "	</select>\n";
+			if ($input_toggle_style_switch) {
+				echo "		<span class='slider'></span>\n";
+				echo "	</span>\n";
 			}
 			echo "<br />\n";
 			echo $text['description-translate']."\n";
@@ -469,17 +465,16 @@
 			echo "	".$text['label-create_recording']."\n";
 			echo "</td>\n";
 			echo "<td class='vtable' style='position: relative;' align='left'>\n";
-			if (substr($_SESSION['theme']['input_toggle_style']['text'], 0, 6) == 'switch') {
-				echo "	<label class='switch'>\n";
-				echo "		<input type='checkbox' id='create_recording' name='create_recording' value='true' ".(!empty($create_recording) && $create_recording == 'true' ? "checked='checked'" : null).">\n";
-				echo "		<span class='slider'></span>\n";
-				echo "	</label>\n";
+			if ($input_toggle_style_switch) {
+				echo "	<span class='switch'>\n";
 			}
-			else {
-				echo "	<select class='formfld' id='create_recording' name='create_recording'>\n";
-				echo "		<option value='true'>".$text['option-true']."</option>\n";
-				echo "		<option value='false' selected='selected'>".$text['option-false']."</option>\n";
-				echo "	</select>\n";
+			echo "	<select class='formfld' id='create_recording' name='create_recording'>\n";
+			echo "		<option value='false' ".($create_recording == false ? "selected='selected'" : null).">".$text['option-false']."</option>\n";
+			echo "		<option value='true' ".($create_recording == true ? "selected='selected'" : null).">".$text['option-true']."</option>\n";
+			echo "	</select>\n";
+			if ($input_toggle_style_switch) {
+				echo "		<span class='slider'></span>\n";
+				echo "	</span>\n";
 			}
 			echo "<br />\n";
 			echo $text['description-create_recording']."\n";
